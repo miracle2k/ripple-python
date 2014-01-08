@@ -233,17 +233,29 @@ class PaymentTransaction(Transaction):
         return not isinstance(self.Amount, dict)
 
     @property
-    def recipient_balance(self):
-        """Returns the new balance *with the issuer*.
+    def is_xrp_sent(self):
+        return not isinstance(self.SendMax, dict)
+
+    def get_balance(self, who, previous=False):
+        """Returns the previous balance *with the issuer*.
         """
+        where = 'old' if previous else 'new'
         if self.is_xrp_received:
             # If it is a XRP payment, there should be one AccountRoot change
-            node = self._get_node(account=self.Destination, type=AccountRootEntry)
-            return int(node.new.Balance)
+            node = self._get_node(account=who, type=AccountRootEntry)
+            return xrp(getattr(node, where).Balance)
         else:
             # Otherwise, there should be one RippleState entry
-            node = self._get_node(account=self.Destination, type=RippleStateEntry)
-            return node.new.balance(self.Destination)
+            node = self._get_node(account=who, type=RippleStateEntry)
+            return getattr(node, where).balance(who)
+
+    @property
+    def recipient_balance(self):
+        return self.get_balance(self.Destination)
+
+    @property
+    def recipient_previous_balance(self):
+        return self.get_balance(self.Destination, previous=True)
 
     @property
     def recipient_trust_limit(self):
@@ -252,6 +264,14 @@ class PaymentTransaction(Transaction):
         else:
             node = self._get_node(account=self.Destination, type=RippleStateEntry)
             return node.new.trust_limit(self.Destination)
+
+    @property
+    def sender_trust_limit(self):
+        if self.is_xrp_sent:
+            return None
+        else:
+            node = self._get_node(account=self.Acount, type=RippleStateEntry)
+            return node.new.trust_limit(self.Account)
 
     def analyze_path(self):
         """This will give you some information about how the payment was
