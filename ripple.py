@@ -176,6 +176,13 @@ class Transaction(RipplePrimitive):
         return result[0]
 
 
+xrp_base = Decimal('1000000')
+def xrp(s):
+    """XRP is given in the API as a large int, convert to a decimal.
+    """
+    return Decimal(s) / xrp_base
+
+
 class PaymentTransaction(Transaction):
 
     @property
@@ -212,7 +219,7 @@ class PaymentTransaction(Transaction):
     def amount_received(self):
         """3-tuple of (amount, currency, issuer).
         """
-        amount = self.Amount.value if isinstance(self.Amount, dict) else self.Amount
+        amount = self.Amount.value if isinstance(self.Amount, dict) else xrp(self.Amount)
         return tuple(
             [amount] +
             list(self.currency_received)
