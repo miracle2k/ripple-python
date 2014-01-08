@@ -93,3 +93,15 @@ def test_payment_payment_usd_to_xrp_lending_from_payee():
     # between two foreign IOUs, as well as an account rippling by issuing
     # their own to a trusting party in exchange for whatever the payment needs.
     assert tx.analyze_path() == {'offers': 1, 'intermediaries': 1}
+
+
+def test_payment_unknown():
+    txstr = open_transaction('payment_unknown.json')
+    tx = Transaction(txstr)
+
+    # Returns intermediaries=4; I'm letting this fail because its a good
+    # example of why we need to analyze the path better, because presumably
+    # the 4th intermediary is the IOU issuer, and this really needs to be
+    # reported separately.
+    assert tx.analyze_path() == {'offers': 3, 'intermediaries': 3}
+
