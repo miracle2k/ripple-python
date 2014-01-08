@@ -95,7 +95,7 @@ LedgerEntries = {
 def shadow(front, back):
     # For now this is a hard-merge, but I'd prefer a transient fall-through.
     result = back.copy()
-    back.update(front)
+    result.update(front)
     return result
 
 
