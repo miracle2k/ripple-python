@@ -1,0 +1,88 @@
+rhq549rEtUrJowuxQC2WsHNGLjAjBQdAe8 is the Payer.
+rD7khdZL58PyhujLwM1Kx7yHBmoxPJ7vPw is the Payee.
+
+The Payee trusts the IOUs of the Payer.
+
+----------
+
+{
+  "hash": "4F8954A3617C3104DF9FAD81B70E794A2441DF1FC9411F524600A04BBB8C26C6",
+  "SendMax": {
+    "value": "10.1",
+    "currency": "USD",
+    "issuer": "rhq549rEtUrJowuxQC2WsHNGLjAjBQdAe8"
+  },
+  "Sequence": 6,
+  "TransactionType": "Payment",
+  "SigningPubKey": "03E2B079E9B09AE8916DA8F5EE40CBDA9578DBE7C820553FE4D5F872EEC7B1FDD4",
+  "Flags": 0,
+  "Fee": "12",
+  "Amount": {
+    "value": "10",
+    "currency": "USD",
+    "issuer": "rD7khdZL58PyhujLwM1Kx7yHBmoxPJ7vPw"
+  },
+  "Account": "rhq549rEtUrJowuxQC2WsHNGLjAjBQdAe8",
+  "Destination": "rD7khdZL58PyhujLwM1Kx7yHBmoxPJ7vPw",
+  "TxnSignature": "30450220137FABB87AEDBA1C4C279CA36C62D009E720F066A599CFE6D55D56ABB56FF34E022100C7F6AACECFDBABE2E2A214A87AD4C0E7CE34389279C585C5DC42A4E850DDB682",
+  "metaData": {
+    "TransactionResult": "tesSUCCESS",
+    "AffectedNodes": [
+      {
+        "ModifiedNode": {
+          "LedgerIndex": "6260DA55EBD73936F8DD792557B8E50BEBF2FED9D661F08711283F8B63CB0DD2",
+          "PreviousTxnLgrSeq": 4304447,
+          "PreviousFields": {
+            "Sequence": 6,
+            "Balance": "39999940"
+          },
+          "LedgerEntryType": "AccountRoot",
+          "FinalFields": {
+            "Flags": 0,
+            "Balance": "39999928",
+            "Sequence": 7,
+            "Account": "rhq549rEtUrJowuxQC2WsHNGLjAjBQdAe8",
+            "OwnerCount": 2
+          },
+          "PreviousTxnID": "9AEB7E1A8655CB0BF44532C0CE3D0871F32CD77121181B7227765EA5D7D03009"
+        }
+      },
+      {
+        "ModifiedNode": {
+          "LedgerIndex": "6DC316F3DE9F069D07D9827A9FA493C0A5944BE1B9DEB2951A59DD8A135B906C",
+          "PreviousTxnLgrSeq": 4304447,
+          "PreviousFields": {
+            "Balance": {
+              "value": "-1.387151365040267",
+              "currency": "USD",
+              "issuer": "rrrrrrrrrrrrrrrrrrrrBZbvji"
+            }
+          },
+          "LedgerEntryType": "RippleState",
+          "FinalFields": {
+            "LowNode": "0000000000000000",
+            "HighNode": "0000000000000000",
+            "LowLimit": {
+              "value": "30",
+              "currency": "USD",
+              "issuer": "rhq549rEtUrJowuxQC2WsHNGLjAjBQdAe8"
+            },
+            "HighLimit": {
+              "value": "40",
+              "currency": "USD",
+              "issuer": "rD7khdZL58PyhujLwM1Kx7yHBmoxPJ7vPw"
+            },
+            "Flags": 2293760,
+            "Balance": {
+              "value": "-11.38715136504026",
+              "currency": "USD",
+              "issuer": "rrrrrrrrrrrrrrrrrrrrBZbvji"
+            }
+          },
+          "PreviousTxnID": "9AEB7E1A8655CB0BF44532C0CE3D0871F32CD77121181B7227765EA5D7D03009"
+        }
+      }
+    ],
+    "TransactionIndex": 3
+  }
+}

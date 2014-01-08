@@ -1,0 +1,61 @@
+rhq549rEtUrJowuxQC2WsHNGLjAjBQdAe8 sends XRP to rD7khdZL58PyhujLwM1Kx7yHBmoxPJ7vPw
+
+Note that the fee and the payment are merged into one node change record.
+
+-----
+
+{
+  "hash": "A667534FBE95827EBBF4B7027D4C6405550FC281DC176D40613AC4EE937E11F0",
+  "Sequence": 7,
+  "TransactionType": "Payment",
+  "SigningPubKey": "03E2B079E9B09AE8916DA8F5EE40CBDA9578DBE7C820553FE4D5F872EEC7B1FDD4",
+  "Flags": 0,
+  "Fee": "12",
+  "Amount": "1000000",
+  "Account": "rhq549rEtUrJowuxQC2WsHNGLjAjBQdAe8",
+  "Destination": "rD7khdZL58PyhujLwM1Kx7yHBmoxPJ7vPw",
+  "TxnSignature": "304602210084C36B1A1016ABBD8ADDE37EE7C4FD45C3FC9FE53845D24C2BCE93B9A3A8D5F6022100A1CCAD1245D6DD37B77BF4165AB36213D75FF012423DA9ED3D3D841FC57E8C42",
+  "metaData": {
+    "TransactionResult": "tesSUCCESS",
+    "AffectedNodes": [
+      {
+        "ModifiedNode": {
+          "LedgerIndex": "6260DA55EBD73936F8DD792557B8E50BEBF2FED9D661F08711283F8B63CB0DD2",
+          "PreviousTxnLgrSeq": 4304680,
+          "PreviousFields": {
+            "Sequence": 7,
+            "Balance": "39999928"
+          },
+          "LedgerEntryType": "AccountRoot",
+          "FinalFields": {
+            "Flags": 0,
+            "Balance": "38999916",
+            "Sequence": 8,
+            "Account": "rhq549rEtUrJowuxQC2WsHNGLjAjBQdAe8",
+            "OwnerCount": 2
+          },
+          "PreviousTxnID": "4F8954A3617C3104DF9FAD81B70E794A2441DF1FC9411F524600A04BBB8C26C6"
+        }
+      },
+      {
+        "ModifiedNode": {
+          "LedgerIndex": "CCE2D80C6762BA3591AB7F16DEB819CDF30EA1D1F28ED0DB486F75F2E09AE390",
+          "PreviousTxnLgrSeq": 4304447,
+          "PreviousFields": {
+            "Balance": "16229610429"
+          },
+          "LedgerEntryType": "AccountRoot",
+          "FinalFields": {
+            "Flags": 0,
+            "Balance": "16230610429",
+            "Sequence": 48,
+            "Account": "rD7khdZL58PyhujLwM1Kx7yHBmoxPJ7vPw",
+            "OwnerCount": 5
+          },
+          "PreviousTxnID": "9AEB7E1A8655CB0BF44532C0CE3D0871F32CD77121181B7227765EA5D7D03009"
+        }
+      }
+    ],
+    "TransactionIndex": 2
+  }
+}
