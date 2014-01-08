@@ -1,7 +1,7 @@
 from decimal import Decimal
 import json
 from os import path
-from rippletools import Transaction, TransactionSubscriptionMessage
+from ripple import Transaction, TransactionSubscriptionMessage
 
 
 def open_transaction(name):
@@ -72,7 +72,7 @@ def test_payment_with_intermediary_traders():
     assert tx.recipient_balance == Decimal('369.1796199999879')
     assert tx.recipient_trust_limit == 4000
 
-    assert tx.analyze_path() == {'offers': 2, 'intermediaries': 0}
+    assert tx.analyze_path() == {'offers': 2, 'intermediaries': 2}
 
 
 def test_payment_payment_usd_to_xrp_lending_from_payee():
