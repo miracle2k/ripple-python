@@ -92,7 +92,7 @@ def test_payment_payment_usd_to_xrp_lending_from_payee():
     # count the IOU being traded as an intermediary, an account rippling
     # between two foreign IOUs, as well as an account rippling by issuing
     # their own to a trusting party in exchange for whatever the payment needs.
-    assert tx.analyze_path() == {'offers': 1, 'intermediaries': 1}
+    assert tx.analyze_path() == {'offers': 1, 'intermediaries': 2}
 
 
 def test_payment_unknown():
