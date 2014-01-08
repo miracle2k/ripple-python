@@ -92,6 +92,13 @@ LedgerEntries = {
 }
 
 
+def shadow(front, back):
+    # For now this is a hard-merge, but I'd prefer a transient fall-through.
+    result = back.copy()
+    back.update(front)
+    return result
+
+
 class NodeModification(RipplePrimitive):
     """An entry in the ``AffectedNodes`` key of a processed transaction.
     """
@@ -101,7 +108,10 @@ class NodeModification(RipplePrimitive):
         node_class = LedgerEntries[data['LedgerEntryType']]
         self.new = node_class(data['FinalFields'])
         if 'PreviousFields' in data:
-            self.old = node_class(data['PreviousFields'])
+            self.old = node_class(
+                # PreviousFields only contains parts, presumably those
+                # that changed, so add a fallback to the shared data).
+                shadow(data['PreviousFields'], data['FinalFields']))
         else:
             self.old = None
         self.type = type(self.new)
