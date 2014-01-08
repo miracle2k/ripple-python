@@ -2,7 +2,7 @@ import os
 import sys
 import json
 import websocket
-from rippletools import Transaction, PaymentTransaction, TransactionSubscriptionMessage
+from ripple import Transaction, PaymentTransaction, TransactionSubscriptionMessage
 
 
 def main():
@@ -34,7 +34,12 @@ def main():
 
 def analyze_transaction(txstr):
     txdata = json.loads(txstr)
-    tx = TransactionSubscriptionMessage(txdata).transaction
+    if 'transaction' in txdata:
+        tx = TransactionSubscriptionMessage(txdata).transaction
+    elif 'result' in txdata:
+        tx = Transaction(txdata['result'])
+    else:
+        tx = Transaction(txdata)
 
     data = [tx.type.__name__]
     if not tx.successful:
