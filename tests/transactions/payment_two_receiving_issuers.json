@@ -1,0 +1,207 @@
+r3ADD8kXSUKHd6zTCKfnKT3zV9EZHjzp1S is the recipient
+rLju3NgFJn9jZuiyibyJM7asTVeVoueWWF is the sender
+rhKJE9kFPz6DuK4KyL2o8NkCCNPKnSQGRL is a third party, X
+
+The recipient has a trust line with X, and has issued CAD to the sender.
+
+They receive two types of IOUs in a single payment: their own, previously
+given to the sender; and IOUs from X, whom they both trust.
+
+-------------------
+
+{
+    "Paths": [
+      [
+        {
+          "type": 1,
+          "type_hex": "0000000000000001",
+          "account": "rhKJE9kFPz6DuK4KyL2o8NkCCNPKnSQGRL"
+        }
+      ],
+      [
+        {
+          "type": 1,
+          "type_hex": "0000000000000001",
+          "account": "rhKJE9kFPz6DuK4KyL2o8NkCCNPKnSQGRL"
+        },
+        {
+          "type": 1,
+          "type_hex": "0000000000000001",
+          "account": "rHdhVSf6ePfy5tNhVnzzazCfcSMfVm15cH"
+        }
+      ],
+      [
+        {
+          "type": 1,
+          "type_hex": "0000000000000001",
+          "account": "rhKJE9kFPz6DuK4KyL2o8NkCCNPKnSQGRL"
+        },
+        {
+          "type": 1,
+          "type_hex": "0000000000000001",
+          "account": "r3v6QzgkBq9hM75XGThKS1NM9gchcTrBHL"
+        }
+      ],
+      [
+        {
+          "type": 1,
+          "type_hex": "0000000000000001",
+          "account": "rhKJE9kFPz6DuK4KyL2o8NkCCNPKnSQGRL"
+        },
+        {
+          "type": 1,
+          "type_hex": "0000000000000001",
+          "account": "rQ96qm46YsRX2F7SSCQxToR2ybRuUYsZ4R"
+        }
+      ]
+    ],
+    "SendMax": {
+      "value": "15.15",
+      "currency": "CAD",
+      "issuer": "rLju3NgFJn9jZuiyibyJM7asTVeVoueWWF"
+    },
+    "Sequence": 1432,
+    "TransactionType": "Payment",
+    "SigningPubKey": "037A5DBCE37DC566A6197F5BBEA12EECCFAD4200CE016AB112F2D607E90E3017F9",
+    "Flags": 0,
+    "metaData": {
+      "TransactionResult": "tesSUCCESS",
+      "AffectedNodes": [
+        {
+          "ModifiedNode": {
+            "LedgerIndex": "27DDCCE3C8455279C66D486DEFE5A4F3DDF13B606963E0F5D34657428E5BFA6D",
+            "PreviousTxnLgrSeq": 4325199,
+            "PreviousFields": {
+              "Balance": {
+                "value": "1685.57",
+                "currency": "CAD",
+                "issuer": "rrrrrrrrrrrrrrrrrrrrBZbvji"
+              }
+            },
+            "LedgerEntryType": "RippleState",
+            "FinalFields": {
+              "LowNode": "0000000000000000",
+              "HighNode": "0000000000000000",
+              "LowLimit": {
+                "value": "1700",
+                "currency": "CAD",
+                "issuer": "r3ADD8kXSUKHd6zTCKfnKT3zV9EZHjzp1S"
+              },
+              "HighLimit": {
+                "value": "1000",
+                "currency": "CAD",
+                "issuer": "rLju3NgFJn9jZuiyibyJM7asTVeVoueWWF"
+              },
+              "Balance": {
+                "value": "1700",
+                "currency": "CAD",
+                "issuer": "rrrrrrrrrrrrrrrrrrrrBZbvji"
+              },
+              "Flags": 196608
+            },
+            "PreviousTxnID": "03275D2629ADEA1E9D02DC48EF308CCA12CEA4A73E74CA200D39C5CE30A65F84"
+          }
+        },
+        {
+          "ModifiedNode": {
+            "LedgerIndex": "7C101149F36FC71F1A0B4A0295F7EB847DEDAC707462A02DA071D19CF2BEEA6E",
+            "PreviousTxnLgrSeq": 4306167,
+            "PreviousFields": {
+              "Sequence": 1432,
+              "Balance": "23510962023"
+            },
+            "LedgerEntryType": "AccountRoot",
+            "FinalFields": {
+              "Flags": 0,
+              "Balance": "23510962011",
+              "Sequence": 1433,
+              "OwnerCount": 26,
+              "Account": "rLju3NgFJn9jZuiyibyJM7asTVeVoueWWF"
+            },
+            "PreviousTxnID": "09786E501AE9BA888FADB76C904CCAFD1F8FFC90EF3C7D333510A6F6C7CB85A2"
+          }
+        },
+        {
+          "ModifiedNode": {
+            "LedgerIndex": "C29D6CE99DA3E7B11B5E6C2730438760069836F65D87F026BC21DB1A1A9A54C0",
+            "PreviousTxnLgrSeq": 4324485,
+            "PreviousFields": {
+              "Balance": {
+                "value": "-526.9947752464243",
+                "currency": "CAD",
+                "issuer": "rrrrrrrrrrrrrrrrrrrrBZbvji"
+              }
+            },
+            "LedgerEntryType": "RippleState",
+            "FinalFields": {
+              "LowNode": "0000000000000000",
+              "HighNode": "0000000000000001",
+              "LowLimit": {
+                "value": "100",
+                "currency": "CAD",
+                "issuer": "rhKJE9kFPz6DuK4KyL2o8NkCCNPKnSQGRL"
+              },
+              "HighLimit": {
+                "value": "900",
+                "currency": "CAD",
+                "issuer": "r3ADD8kXSUKHd6zTCKfnKT3zV9EZHjzp1S"
+              },
+              "Balance": {
+                "value": "-527.5647752464243",
+                "currency": "CAD",
+                "issuer": "rrrrrrrrrrrrrrrrrrrrBZbvji"
+              },
+              "Flags": 196608
+            },
+            "PreviousTxnID": "E4D282B8553354D9C21ED1C53714749DB5FA7A740B1C364B75C15A2CA2771CD4"
+          }
+        },
+        {
+          "ModifiedNode": {
+            "LedgerIndex": "C8C13254F8ACD1B44C4913616B6DF7116BCE3761DC1B0E1B1BC3D2B011A0BF96",
+            "PreviousTxnLgrSeq": 4315290,
+            "PreviousFields": {
+              "Balance": {
+                "value": "36.99",
+                "currency": "CAD",
+                "issuer": "rrrrrrrrrrrrrrrrrrrrBZbvji"
+              }
+            },
+            "LedgerEntryType": "RippleState",
+            "FinalFields": {
+              "LowNode": "0000000000000000",
+              "HighNode": "0000000000000000",
+              "LowLimit": {
+                "value": "50",
+                "currency": "CAD",
+                "issuer": "rhKJE9kFPz6DuK4KyL2o8NkCCNPKnSQGRL"
+              },
+              "HighLimit": {
+                "value": "200",
+                "currency": "CAD",
+                "issuer": "rLju3NgFJn9jZuiyibyJM7asTVeVoueWWF"
+              },
+              "Balance": {
+                "value": "37.56",
+                "currency": "CAD",
+                "issuer": "rrrrrrrrrrrrrrrrrrrrBZbvji"
+              },
+              "Flags": 196608
+            },
+            "PreviousTxnID": "6ADB514FC2C9C654234732FFB3534BD8885D96156462EC2B9DFB76862D5BA5C4"
+          }
+        }
+      ],
+      "TransactionIndex": 1
+    },
+    "Fee": "12",
+    "Amount": {
+      "value": "15",
+      "currency": "CAD",
+      "issuer": "r3ADD8kXSUKHd6zTCKfnKT3zV9EZHjzp1S"
+    },
+    "TxnSignature": "304402204DF7BD1032301D4601C415A8CB80E76E417DC106EFE19F5EB4014E50EC899D2A02206804D1699ED59CB1E8823C7ADEF0642AD5E63912B998DDD80C9BC068EE0BC2E2",
+    "Destination": "r3ADD8kXSUKHd6zTCKfnKT3zV9EZHjzp1S",
+    "hash": "EB270A13A41D8AEA25939EADEC1FB033F92DE2C1F383525BDB68BE46851D2C7D",
+    "Account": "rLju3NgFJn9jZuiyibyJM7asTVeVoueWWF"
+  }

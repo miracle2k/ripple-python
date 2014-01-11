@@ -21,6 +21,15 @@ class RipplePrimitive(dict):
         return '<%s %s>' % (self.__class__.__name__, dict.__repr__(self))
 
 
+class tupledict(list):
+    """A list of 2-tuples that can be used as a dict."""
+    def __getitem__(self, item):
+        for key, value in self:
+            if key == item:
+                return value
+        return list.__getitem__(self, item)
+
+
 class RippleStateEntry(RipplePrimitive):
     """Ripple state entries exist when one account sets a credit limit
     to another account in a particular currency or if an account holds
@@ -173,15 +182,19 @@ class Transaction(RipplePrimitive):
                 'DeletedNode': NodeDeletion}[change_type]
             yield node_class(list(node.values())[0])
 
-    def _get_node(self, account=None, type=None):
-        """Return a affected node matching the filters, and make sure
-        there is only one."""
+    def _get_nodes(self, account=None, type=None):
+        """Return affected nodes matching the filters."""
         result = self.affected_nodes
         if account:
             result = filter(lambda n: n.affects_account(account), result)
         if type:
             result = filter(lambda n: n.type == type, result)
-        result = list(result)
+        return list(result)
+
+    def _get_node(self, account=None, type=None):
+        """Return a affected node matching the filters, and make sure
+        there is only one."""
+        result = self._get_nodes(account, type)
         assert len(result) == 1, 'One node expected, found %s' % len(result)
         return result[0]
 
@@ -193,10 +206,40 @@ def xrp(s):
     return Decimal(s) / xrp_base
 
 
+class first(object):
+    """Provide a simplified accessor for a property that returns
+    multiple values.
+
+    Assumes the property value has the following format::
+
+        [(key, value), (key, value)]
+
+    Will return prop[0].value if there is a single item, or raise an error.
+    """
+    def __init__(self, attr):
+        self.attr = attr
+    def __get__(self, instance, owner):
+        multiple = getattr(instance, self.attr)
+        if len(multiple) > 1:
+            raise ValueError('More than one issuer on recipient side, '
+                             'use the multi-value access property')
+        return multiple[0][1]
+
+
 class PaymentTransaction(Transaction):
 
     @property
-    def currency_received(self):
+    def num_received_issuers(self):
+        """The number of different issuers received.
+
+        Returns 0 in case of XRP.
+        """
+        if self.is_xrp_received:
+            return 0
+        return len(self.currencies_received[1])
+
+    @property
+    def currencies_received(self):
         """Returns a 2-tuple (code, issuer) indicating the currency
         that was received. In case of XRP, ``('XRP', None)`` is returned.
 
@@ -209,7 +252,7 @@ class PaymentTransaction(Transaction):
 
         - ``Amount.issuer`` - always seems to be the account of the recipient.
         - The last element of ``Paths``. Frequently, multiple paths are
-          listed, and it's  not clear which one the transaction took.
+          listed, and it's not clear which one the transaction took.
 
         All in all, it it seems as if that part of the transaction is verbatim
         what the client submitted. Instead, we look into ``metaData``.
@@ -221,18 +264,37 @@ class PaymentTransaction(Transaction):
             # This means XRP was received.
             return ('XRP', None)
         else:
-            node = self._get_node(account=self.Destination, type=RippleStateEntry)
-            return (self.Amount.currency, node.counter_party(self.Destination))
+            return (
+                self.Amount.currency,
+                [node.counter_party(self.Destination) for node in self._get_nodes(
+                    account=self.Destination, type=RippleStateEntry)]
+            )
 
+    @property
+    def amounts_received(self):
+        """A list of all the amounts received by issuer.
+
+        If there is only one issuer, the output is similar to what you'd
+        see from :prop:`amount_received`.
+        """
+        result = []
+        for node in self._get_nodes(
+                account=self.Destination, type=RippleStateEntry):
+            result.append((
+                node.new.balance(self.Destination)
+                    - node.old.balance(self.Destination),
+                self.Amount.currency,
+                node.counter_party(self.Destination)))
+        return result
 
     @property
     def amount_received(self):
-        """3-tuple of (amount, currency, issuer).
+        """3-tuple of (amount, currency, issuers), representing the full
+        amount received.
         """
-        amount = self.Amount.value if isinstance(self.Amount, dict) else xrp(self.Amount)
         return tuple(
-            [amount] +
-            list(self.currency_received)
+            [self.Amount.value if isinstance(self.Amount, dict) else xrp(self.Amount)] +
+            list(self.currencies_received)
         )
 
     @property
@@ -246,34 +308,53 @@ class PaymentTransaction(Transaction):
     def is_xrp_sent(self):
         return not isinstance(self.SendMax, dict)
 
-    def get_balance(self, who, previous=False):
-        """Returns the previous balance *with the issuer*.
+    def get_balances(self, who, previous=False):
+        """Returns the previous balances with each issuer.
         """
         where = 'old' if previous else 'new'
         if self.is_xrp_received:
             # If it is a XRP payment, there should be one AccountRoot change
             node = self._get_node(account=who, type=AccountRootEntry)
-            return xrp(getattr(node, where).Balance)
+            return [(None, xrp(getattr(node, where).Balance))]
         else:
-            # Otherwise, there should be one RippleState entry
-            node = self._get_node(account=who, type=RippleStateEntry)
-            return getattr(node, where).balance(who)
+            # Otherwise, there should be one or more RippleState entries
+            # for each issuer.
+            nodes = self._get_nodes(account=who, type=RippleStateEntry)
+            return tupledict(
+                [(node.counter_party(self.Destination),
+                 getattr(node, where).balance(who)) for node in nodes])
 
     @property
-    def recipient_balance(self):
-        return self.get_balance(self.Destination)
+    def recipient_balances(self):
+        """Example return value::
+
+            [('rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B', Decimal('28'))]
+        """
+        return self.get_balances(self.Destination)
 
     @property
-    def recipient_previous_balance(self):
-        return self.get_balance(self.Destination, previous=True)
+    def recipient_previous_balances(self):
+        return self.get_balances(self.Destination, previous=True)
 
     @property
-    def recipient_trust_limit(self):
+    def recipient_trust_limits(self):
+        """Example return value::
+
+            [('rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B', Decimal('500'))]
+        """
         if self.is_xrp_received:
-            return None
+            return []
         else:
-            node = self._get_node(account=self.Destination, type=RippleStateEntry)
-            return node.new.trust_limit(self.Destination)
+            nodes = self._get_nodes(account=self.Destination, type=RippleStateEntry)
+            return tupledict(
+                [(node.counter_party(self.Destination),
+                 node.new.trust_limit(self.Destination)) for node in nodes])
+
+    # If there is only one issuer being received, make access easier.
+    # These raise an exception when more than one issuer is involved.
+    recipient_balance = first('recipient_balances')
+    recipient_previous_balance = first('recipient_previous_balances')
+    recipient_trust_limit = first('recipient_trust_limits')
 
     @property
     def sender_trust_limit(self):
@@ -313,6 +394,11 @@ class PaymentTransaction(Transaction):
         a fee is claimed during an IOU payment, or when your offer gets
         resolved during a third party's payment.
         Presumably, this can be vastly improved.
+
+        TODO: In particular, in cases where the recipient receives currency
+        from multiple issuers, there really should be a way to make
+        this info more accessible - maybe see the individual paths
+        separately.
         """
 
         # list() used once exhausts the generator, it's tiring..
