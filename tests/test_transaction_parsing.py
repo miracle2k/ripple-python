@@ -139,6 +139,34 @@ def test_payment_two_receiving_issuers():
         tx.recipient_trust_limit
 
 
+def test_payment_three_sending_issuers():
+    txstr = open_transaction('payment_multiple_sending_issuers.json')
+    tx = Transaction(txstr)
+
+    # We identify the correct recipient data
+    assert tx.currencies_received == (
+        'CAD', ['rLju3NgFJn9jZuiyibyJM7asTVeVoueWWF',
+                'rnziParaNb8nsU4aruQdwYE3j5jUcqjzFm',
+                'rhKJE9kFPz6DuK4KyL2o8NkCCNPKnSQGRL'])
+    assert tx.amounts_received == [
+        (Decimal('5.088436765502'), u'CAD', u'rLju3NgFJn9jZuiyibyJM7asTVeVoueWWF'),
+        (Decimal('10.15156323449716'), 'CAD', 'rnziParaNb8nsU4aruQdwYE3j5jUcqjzFm'),
+        (Decimal('9.7600000000000'), u'CAD', u'rhKJE9kFPz6DuK4KyL2o8NkCCNPKnSQGRL')
+    ]
+
+    assert tx.sender_trust_limits == [
+        ('r3ADD8kXSUKHd6zTCKfnKT3zV9EZHjzp1S', Decimal('1000')),
+        ('rnziParaNb8nsU4aruQdwYE3j5jUcqjzFm', Decimal('20')),
+        ('rhKJE9kFPz6DuK4KyL2o8NkCCNPKnSQGRL', Decimal('200'))
+    ]
+
+    assert tx.analyze_path() == {'offers': 0, 'intermediaries': 2}
+
+    # The simplified single-accessor fail in this case
+    with pytest.raises(ValueError):
+        tx.sender_trust_limit
+
+
 def test_payment_unknown():
     txstr = open_transaction('payment_unknown.json')
     tx = Transaction(txstr)

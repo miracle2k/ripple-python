@@ -350,19 +350,32 @@ class PaymentTransaction(Transaction):
                 [(node.counter_party(self.Destination),
                  node.new.trust_limit(self.Destination)) for node in nodes])
 
+    @property
+    def sender_trust_limits(self):
+        """The trust limits of the sender changed in this transaction.
+
+        Multiple of a sender's trust limits may have changed during the
+        transaction, because the full amount of currency sent may be
+        a combination of different balances.
+
+        Example return value::
+
+            [('rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B', Decimal('500'))]
+        """
+        if self.is_xrp_received:
+            return []
+        else:
+            nodes = self._get_nodes(account=self.Account, type=RippleStateEntry)
+            return tupledict(
+                [(node.counter_party(self.Account),
+                 node.new.trust_limit(self.Account)) for node in nodes])
+
     # If there is only one issuer being received, make access easier.
     # These raise an exception when more than one issuer is involved.
     recipient_balance = first('recipient_balances')
     recipient_previous_balance = first('recipient_previous_balances')
     recipient_trust_limit = first('recipient_trust_limits')
-
-    @property
-    def sender_trust_limit(self):
-        if self.is_xrp_sent:
-            return None
-        else:
-            node = self._get_node(account=self.Acount, type=RippleStateEntry)
-            return node.new.trust_limit(self.Account)
+    sender_trust_limit = first('sender_trust_limits')
 
     def analyze_path(self):
         """This will give you some information about how the payment was
