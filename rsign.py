@@ -18,6 +18,10 @@ def main(argv):
     tx = json.loads(argv[2])
     signed_tx = sign_transaction(tx.copy(), secret)
 
+    # For compatibility with rsign.js, comparing the output is
+    # otherwise quite confusing.
+    tx['SigningPubKey'] = signed_tx['SigningPubKey']
+
     output = {
         'tx_json': signed_tx,
         'tx_blob': serialize_object(signed_tx),
