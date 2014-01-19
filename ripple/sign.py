@@ -89,7 +89,7 @@ def root_key_from_seed(seed):
         i += 1
         if curves.SECP256k1.order >= secret:
             break
-    secret = secret + private_gen % curves.SECP256k1.order
+    secret = (secret + private_gen) % curves.SECP256k1.order
 
     # The ECDSA signing key object will, given this secret, then expose
     # the actual private and public key we are supposed to work with.
@@ -140,8 +140,8 @@ def create_signing_hash(transaction, testnet=False):
     """
     prefix = HASH_TX_SIGN_TESTNET if testnet else HASH_TX_SIGN
     binary = first_half_of_sha512(
-        to_bytes(prefix, 4),
-        serialize_object(transaction))
+        to_bytes(prefix, 4) +
+        serialize_object(transaction, hex=False))
     return binary.encode('hex').upper()
 
 
@@ -192,6 +192,16 @@ class Test:
             ecc_point_to_bytes_compressed(key.privkey.public_key.point, pad=True)) == \
             'rhcfR9Cg98qCxHpCcPBmMonbDBXo84wyTn'
 
+    def test_key_derivation(self):
+        key = root_key_from_seed(parse_seed('ssq55ueDob4yV3kPVnNQLHB6icwpC'))
+        # This ensures the key was properly initialized
+        assert hex(key.privkey.secret_multiplier) == \
+            '0x902981cd5e0c862c53dc4854b6da4cc04179a2a524912d79800ac4c95435564dL'
+
     def test_ripple_from_secret(self):
         assert get_ripple_from_secret('shHM53KPZ87Gwdqarm1bAmPeXg8Tn') ==\
                'rhcfR9Cg98qCxHpCcPBmMonbDBXo84wyTn'
+
+    def test_signing_hash(self):
+        assert create_signing_hash({"TransactionType": "Payment"}) == \
+            '903C926641095B392A123D4CCD19E060DD8A603C91DDFF254AC9AD3B986C10CF'

@@ -289,7 +289,7 @@ class TypeSerializers:
     __metaclass__ = AllStatic
     def byte_writer(num_bytes):
         def func(stream, value):
-            stream.write(to_bytes(value, num_bytes))
+            stream.write(to_bytes(int(value), num_bytes))
         return func
 
     STInt8 = byte_writer(1)
