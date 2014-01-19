@@ -12,6 +12,9 @@ setup(
     license='BSD',
     py_modules=['ripple'],
     zip_safe=True,
+    install_requires=[
+        'ecdsa>=0.10'
+    ],
     classifiers=[
         'Development Status :: 3 - Alpha',
         'License :: OSI Approved :: BSD License',
