@@ -106,7 +106,7 @@ def ecdsa_sign(key, bytes):
 
     The data will be a binary coded transaction.
     """
-    r, s = key.sign_number(from_bytes(bytes))
+    r, s = key.sign_number(int(bytes, 16))
     # Encode signature in DER format, as in.
     # As in ``sjcl.ecc.ecdsa.secretKey.prototype.encodeDER``
     der_coded = sigencode_der(r, s, None)
