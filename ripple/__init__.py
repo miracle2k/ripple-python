@@ -1,2 +1,2 @@
 from .datastructures import *
-form .sign import *
+from .sign import *

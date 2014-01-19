@@ -1,11 +1,16 @@
 """I want this to be a straightforward and easy to understand
 implementation of the signing procedure that can be ripped from this
 library and used on its own.
+
+See also:
+    https://ripple.com/wiki/User:Singpolyma/Transaction_Signing
 """
 
-from hashlib import sha256, sha512
+from hashlib import sha512
 from ecdsa import curves, SigningKey
 from ecdsa.util import sigencode_der
+from serialize import (
+    to_bytes, from_bytes, RippleBaseDecoder, serialize_object, fmt_hex)
 
 
 __all__ = ('sign_transaction', 'signature_for_transaction')
@@ -32,14 +37,14 @@ def signature_for_transaction(transaction, secret):
     key = root_key_from_seed(seed)
 
     # Apparently the pub key is required to be there.
-    transaction['SigningPubKey'] = '%X' % from_bytes(
-        ecc_point_to_bytes_compressed(key.privkey.public_key.point))
+    transaction['SigningPubKey'] = fmt_hex(ecc_point_to_bytes_compressed(
+        key.privkey.public_key.point, pad=True))
 
     # Convert the transaction to a binary representation
-    signing_hash = tx_to_binary(transaction)
+    signing_hash = create_signing_hash(transaction)
 
     # Create a hex-formatted signature.
-    return '%X' % ecdsa_sign(key, signing_hash)
+    return fmt_hex(ecdsa_sign(key, signing_hash))
 
 
 def parse_seed(secret):
@@ -101,119 +106,53 @@ def ecdsa_sign(key, bytes):
     # Encode signature in DER format, as in.
     # As in ``sjcl.ecc.ecdsa.secretKey.prototype.encodeDER``
     der_coded = sigencode_der(r, s, None)
-    # Return as uppercase hex
-    return from_bytes(der_coded)
+    return der_coded
 
 
-def tx_to_binary(transaction):
-    # 'HASH_TX_SIGN_TESTNET' : 'HASH_TX_SIGN' -> to binary
-    # sha512(prefix + binaryObject)
-    return 'DCB1705AC616BA2FA2F0BCC21277192A24A726B4900636496E166816B4EE11D9'
+# From ripple-lib:hashprefixes.js
+HASH_TX_SIGN = 0x53545800  # 'STX'
+HASH_TX_SIGN_TESTNET = 0x73747800 # 'stx'
 
+def create_signing_hash(transaction, testnet=False):
+    """This is the actual value to be signed.
 
-
-class RippleBaseDecoder(object):
-    """Decodes Ripple's base58 alphabet.
-
-    This is what ripple-lib does in ``base.js``.
+    It consists of a prefix and the binary representation of the transaction.
     """
-
-    alphabet = 'rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz'
-
-    @classmethod
-    def decode(cls, *a, **kw):
-        """Apply base58 decode, verify checksum, return payload.
-        """
-        decoded = cls.decode_base(*a, **kw)
-        assert cls.verify_checksum(decoded)
-        payload = decoded[:-4] # remove the checksum
-        payload = payload[1:]  # remove first byte, a version number
-        return payload
-
-    @classmethod
-    def decode_base(cls, encoded, pad_length=None):
-        """Decode a base encoded string with the Ripple alphabet."""
-        n = 0
-        base = len(cls.alphabet)
-        for char in encoded:
-            n = n * base + cls.alphabet.index(char)
-        return to_bytes(n, pad_length, 'big')
-
-    @classmethod
-    def verify_checksum(cls, bytes):
-        """These ripple byte sequences have a checksum builtin.
-        """
-        valid = bytes[-4:] == sha256(sha256(bytes[:-4]).digest()).digest()[:4]
-        return valid
-
-    @staticmethod
-    def as_ints(bytes):
-        return list([ord(c) for c in bytes])
+    prefix = HASH_TX_SIGN_TESTNET if testnet else HASH_TX_SIGN
+    binary = first_half_of_sha512(
+        to_bytes(prefix, 4),
+        serialize_object(transaction))
+    return binary.encode('hex').upper()
 
 
-def first_half_of_sha512(bytes):
+def first_half_of_sha512(*bytes):
     """As per spec, this is the hashing function used."""
-    return sha512(bytes).digest()[:256/8]
+    hash = sha512()
+    for part in bytes:
+        hash.update(part)
+    return hash.digest()[:256/8]
 
 
-def to_bytes(number, pad_length=None, endianess='big'):
-    """Will take an integer and serialize it to a string of bytes.
-    Python 3 has this, this is a backport to Python 2.
-    # http://stackoverflow.com/a/16022710/15677
-    """
-    h = '%x' % number
-    s = ('0'*(len(h) % 2) + h)
-    if pad_length:
-        s = s.zfill(pad_length*2)
-    s = s.decode('hex')
-    return s if endianess == 'big' else s[::-1]
-
-
-def from_bytes(bytes):
-    """Reverse of to_bytes()."""
-    return int(bytes.encode('hex'), 16)
-
-
-def ecc_point_to_bytes_compressed(point):
+def ecc_point_to_bytes_compressed(point, pad=False):
     """
     In ripple-lib, implemented as a prototype extension
     ``sjcl.ecc.point.prototype.toBytesCompressed`` in ``sjcl-custom``.
 
     Also implemented as ``KeyPair.prototype._pub_bits``, though in
-    that case it seems to explicitly try to pad to the bit length of
+    that case it explicitly first pads the point to the bit length of
     the curve prime order value.
     """
+
     header = '\x02' if point.y() % 2 == 0 else '\x03'
-    return "{}{}".format(header, to_bytes(point.x()))
-
-
-import json
-print json.dumps(sign_transaction({}, 'ssq55ueDob4yV3kPVnNQLHB6icwpC'), indent=3)
-
+    bytes = to_bytes(
+        point.x(),
+        curves.SECP256k1.order.bit_length()/8 if pad else None)
+    return "{}{}".format(header, bytes)
 
 
 class Test:
-    def test_seed(self):
+    def test_parse_seed(self):
         parsed = parse_seed('ssq55ueDob4yV3kPVnNQLHB6icwpC')
         assert RippleBaseDecoder.as_ints(parsed) == [
-            33,
-            82,
-            50,
-            144,
-            230,
-            54,
-            214,
-            205,
-            65,
-            69,
-            243,
-            240,
-            63,
-            133,
-            73,
-            87,
-            122,
-            127,
-            146,
-            238,
-            172 ]
+            33, 82, 50, 144, 230, 54, 214, 205, 65, 69, 243, 240, 63, 133,
+            73, 87, 122, 127, 146, 238, 172]
