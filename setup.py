@@ -13,7 +13,8 @@ setup(
     py_modules=['ripple'],
     zip_safe=True,
     install_requires=[
-        'ecdsa>=0.10'
+        'ecdsa>=0.10',
+        'websocket-client>=0.12'
     ],
     classifiers=[
         'Development Status :: 3 - Alpha',

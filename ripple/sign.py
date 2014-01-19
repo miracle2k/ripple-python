@@ -100,13 +100,13 @@ def root_key_from_seed(seed):
     return key
 
 
-def ecdsa_sign(key, bytes, **kw):
+def ecdsa_sign(key, signing_hash, **kw):
     """Sign the given data. The key is the secret returned by
     :func:`root_key_from_seed`.
 
     The data will be a binary coded transaction.
     """
-    r, s = key.sign_number(int(bytes, 16), **kw)
+    r, s = key.sign_number(int(signing_hash, 16), **kw)
     # Encode signature in DER format, as in.
     # As in ``sjcl.ecc.ecdsa.secretKey.prototype.encodeDER``
     der_coded = sigencode_der(r, s, None)
@@ -130,15 +130,23 @@ def get_ripple_from_secret(seed):
 
 
 # From ripple-lib:hashprefixes.js
+HASH_TX_ID = 0x54584E00; # 'TXN'
 HASH_TX_SIGN = 0x53545800  # 'STX'
 HASH_TX_SIGN_TESTNET = 0x73747800 # 'stx'
 
 def create_signing_hash(transaction, testnet=False):
     """This is the actual value to be signed.
 
-    It consists of a prefix and the binary representation of the transaction.
+    It consists of a prefix and the binary representation of the
+    transaction.
     """
     prefix = HASH_TX_SIGN_TESTNET if testnet else HASH_TX_SIGN
+    return hash_transaction(transaction, prefix)
+
+
+def hash_transaction(transaction, prefix):
+    """Create a hash of the transaction and the prefix.
+    """
     binary = first_half_of_sha512(
         to_bytes(prefix, 4) +
         serialize_object(transaction, hex=False))
