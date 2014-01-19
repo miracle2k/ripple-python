@@ -152,7 +152,8 @@ def ecc_point_to_bytes_compressed(point, pad=False):
 
 class Test:
     def test_parse_seed(self):
+        # To get the reference value in ripple-lib:
+        #    Seed.from_json(...)._value.toString()
         parsed = parse_seed('ssq55ueDob4yV3kPVnNQLHB6icwpC')
-        assert RippleBaseDecoder.as_ints(parsed) == [
-            33, 82, 50, 144, 230, 54, 214, 205, 65, 69, 243, 240, 63, 133,
-            73, 87, 122, 127, 146, 238, 172]
+        assert from_bytes(parsed) == \
+               109259249403722017025835552665225484154
