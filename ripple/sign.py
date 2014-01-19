@@ -100,13 +100,13 @@ def root_key_from_seed(seed):
     return key
 
 
-def ecdsa_sign(key, bytes):
+def ecdsa_sign(key, bytes, **kw):
     """Sign the given data. The key is the secret returned by
     :func:`root_key_from_seed`.
 
     The data will be a binary coded transaction.
     """
-    r, s = key.sign_number(int(bytes, 16))
+    r, s = key.sign_number(int(bytes, 16), **kw)
     # Encode signature in DER format, as in.
     # As in ``sjcl.ecc.ecdsa.secretKey.prototype.encodeDER``
     der_coded = sigencode_der(r, s, None)
@@ -205,3 +205,19 @@ class Test:
     def test_signing_hash(self):
         assert create_signing_hash({"TransactionType": "Payment"}) == \
             '903C926641095B392A123D4CCD19E060DD8A603C91DDFF254AC9AD3B986C10CF'
+
+    def test_der_encoding(self):
+        # This simply verifies that the DER encoder from the ECDSA lib
+        # we're using does the right thing and matches the output of the
+        # DER encoder of ripple-lib.
+        assert sigencode_der(
+            int('ff89083ed4923b3379381826339c614ac1cb79bf36b18c34d5e97784c5a5a9db', 16),
+            int('cc4355eda8ce79c629fb53b0d19abc1b543d9f174626cf33b8a26254c63b22b7', 16),
+            None).encode('hex') == \
+            '3046022100ff89083ed4923b3379381826339c614ac1cb79bf36b18c34d5e97784c5a5a9db022100cc4355eda8ce79c629fb53b0d19abc1b543d9f174626cf33b8a26254c63b22b7'
+
+    def test_sign(self):
+        # Verify a correct signature is created (uses a fixed k value):
+        key = root_key_from_seed(parse_seed('ssq55ueDob4yV3kPVnNQLHB6icwpC'))
+        assert ecdsa_sign(key, 'FF00EECC', k=3).encode('hex') == \
+            '3045022100f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f902205f6d58be6182b9a1e04fcec36f75668deafad2e4336b48770ee5c559d3518301'
