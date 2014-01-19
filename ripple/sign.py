@@ -6,7 +6,7 @@ See also:
     https://ripple.com/wiki/User:Singpolyma/Transaction_Signing
 """
 
-from hashlib import sha512
+import hashlib
 from ecdsa import curves, SigningKey
 from ecdsa.util import sigencode_der
 from serialize import (
@@ -93,7 +93,11 @@ def root_key_from_seed(seed):
 
     # The ECDSA signing key object will, given this secret, then expose
     # the actual private and public key we are supposed to work with.
-    return SigningKey.from_secret_exponent(secret, curves.SECP256k1)
+    key = SigningKey.from_secret_exponent(secret, curves.SECP256k1)
+    # Attach the generators as supplemental data
+    key.private_gen = private_gen
+    key.public_gen = public_gen
+    return key
 
 
 def ecdsa_sign(key, bytes):
@@ -107,6 +111,22 @@ def ecdsa_sign(key, bytes):
     # As in ``sjcl.ecc.ecdsa.secretKey.prototype.encodeDER``
     der_coded = sigencode_der(r, s, None)
     return der_coded
+
+
+def get_ripple_from_pubkey(pubkey):
+    """Given a public key, determine the Ripple address.
+    """
+    ripemd160 = hashlib.new('ripemd160')
+    ripemd160.update(hashlib.sha256(pubkey).digest())
+    print(ripemd160.digest().encode('hex').upper())
+    return RippleBaseDecoder.encode(ripemd160.digest())
+
+
+def get_ripple_from_secret(seed):
+    """Another helper. Returns the first ripple address from the secret."""
+    key = root_key_from_seed(parse_seed(seed))
+    pubkey = ecc_point_to_bytes_compressed(key.privkey.public_key.point, pad=True)
+    return get_ripple_from_pubkey(pubkey)
 
 
 # From ripple-lib:hashprefixes.js
@@ -127,7 +147,7 @@ def create_signing_hash(transaction, testnet=False):
 
 def first_half_of_sha512(*bytes):
     """As per spec, this is the hashing function used."""
-    hash = sha512()
+    hash = hashlib.sha512()
     for part in bytes:
         hash.update(part)
     return hash.digest()[:256/8]
@@ -151,9 +171,27 @@ def ecc_point_to_bytes_compressed(point, pad=False):
 
 
 class Test:
+
     def test_parse_seed(self):
         # To get the reference value in ripple-lib:
         #    Seed.from_json(...)._value.toString()
         parsed = parse_seed('ssq55ueDob4yV3kPVnNQLHB6icwpC')
         assert from_bytes(parsed) == \
                109259249403722017025835552665225484154
+
+    def test_wiki_test_vector(self):
+        # https://ripple.com/wiki/Account_Family#Test_Vectors
+        seed = parse_seed('shHM53KPZ87Gwdqarm1bAmPeXg8Tn')
+        assert fmt_hex(seed) == '71ED064155FFADFA38782C5E0158CB26'
+
+        key = root_key_from_seed(seed)
+        assert fmt_hex(to_bytes(key.private_gen)) == \
+               '7CFBA64F771E93E817E15039215430B53F7401C34931D111EAB3510B22DBB0D8'
+
+        assert get_ripple_from_pubkey(
+            ecc_point_to_bytes_compressed(key.privkey.public_key.point, pad=True)) == \
+            'rhcfR9Cg98qCxHpCcPBmMonbDBXo84wyTn'
+
+    def test_ripple_from_secret(self):
+        assert get_ripple_from_secret('shHM53KPZ87Gwdqarm1bAmPeXg8Tn') ==\
+               'rhcfR9Cg98qCxHpCcPBmMonbDBXo84wyTn'

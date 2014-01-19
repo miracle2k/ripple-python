@@ -1,3 +1,4 @@
+from binascii import hexlify
 from io import BytesIO
 from decimal import Decimal
 from hashlib import sha256
@@ -479,6 +480,35 @@ class RippleBaseDecoder(object):
     @staticmethod
     def as_ints(bytes):
         return list([ord(c) for c in bytes])
+
+    @classmethod
+    def encode(cls, data):
+        """Apply base58 encode including version, checksum."""
+        version = '\x00'
+        bytes = version + data
+        bytes += sha256(sha256(bytes).digest()).digest()[:4]   # checksum
+        return cls.encode_base(bytes)
+
+    @classmethod
+    def encode_base(cls, data):
+        # https://github.com/jgarzik/python-bitcoinlib/blob/master/bitcoin/base58.py
+        # Convert big-endian bytes to integer
+        n = int(hexlify(data).decode('utf8'), 16)
+
+        # Divide that integer into base58
+        res = []
+        while n > 0:
+            n, r = divmod (n, len(cls.alphabet))
+            res.append(cls.alphabet[r])
+        res = ''.join(res[::-1])
+
+        # Encode leading zeros as base58 zeros
+        czero = b'\x00'
+        pad = 0
+        for c in data:
+            if c == czero: pad += 1
+            else: break
+        return cls.alphabet[0] * pad + res
 
 
 def call_encoder(func, *a, **kw):
