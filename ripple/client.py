@@ -12,8 +12,7 @@ from .sign import hash_transaction, HASH_TX_ID, get_ripple_from_secret, sign_tra
 __all__ = ('Remote', 'Client', 'RippleError')
 
 
-log = logging.Logger('ripple.client')
-log.addHandler(logging.StreamHandler())
+log = logging.getLogger('ripple.client')
 log.addHandler(logging.NullHandler())
 
 
