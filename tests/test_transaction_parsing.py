@@ -84,13 +84,13 @@ def test_payment_with_intermediary_traders():
     assert tx.analyze_path() == {'offers': 2, 'intermediaries': 2}
 
 
-def test_payment_payment_usd_to_xrp_lending_from_payee():
+def test_payment_usd_to_xrp_lending_from_payee():
     txstr = open_transaction('payment_usd_to_xrp_lending_from_payee.json')
     tx = Transaction(txstr)
 
     # We identify the correct recipient data
     assert tx.currencies_received == ('XRP', None)
-    assert tx.recipient_balances == [(Decimal('16229.610429'), None)]
+    assert tx.recipient_balances == [(None, Decimal('16229.610429'))]
     assert tx.recipient_trust_limits == []
 
     # TODO: This test currently fails because we aren't smart enough to

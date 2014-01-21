@@ -14,7 +14,7 @@ def test_amount():
         assert Amount('10').value == Decimal('10')
 
     # Generate output
-    assert u'%s' % Amount('10.0').__json__ == 10000000
+    assert Amount('10.0').__json__() == 10000000
 
 
 
