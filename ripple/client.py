@@ -9,7 +9,7 @@ from .serialize import serialize_object
 from .sign import hash_transaction, HASH_TX_ID, get_ripple_from_secret, sign_transaction
 
 
-__all__ = ('Remote', 'Client')
+__all__ = ('Remote', 'Client', 'RippleError')
 
 
 log = logging.Logger('ripple.client')
@@ -22,7 +22,12 @@ class RippleError(Exception):
 
 
 class ResponseError(RippleError):
-    pass
+    def __init__(self, error_response):
+        self.response = error_response
+        RippleError.__init__(self, error_response['error_message'])
+
+    def __getitem__(self, item):
+        return self.response[item]
 
 
 FEE_DEFAULTS = {
