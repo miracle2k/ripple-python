@@ -1,4 +1,4 @@
-from Queue import Queue
+from Queue import Queue, Empty
 from decimal import Decimal
 import json
 import threading
@@ -210,20 +210,24 @@ class Client(object):
                 raise ValueError(
                     u'unexpected message from server: %s' % unicode(msg))
         except Exception, e:
-            # Notify all callbacks so that exceptions occur
-            # in all waiters.
-            with self.callbacks_lock:
-                for deferred in self.callbacks.values():
-                    deferred.resolve(e)
-            with self.subscriptions_lock:
-                for queues in self.subscriptions.values():
-                    for queue in queues:
-                        queue.put(e)
-            # Also shut down the connection so that the main thread
-            # doesn't keep sending while not getting a response.
-            self.conn.close()
-            # Finally, re-raise the exception in the thread
-            raise
+            # If we have already shutdown, ignore the error. This is
+            # because by shutting down the socket during a recv(), a
+            # variety of socket-related / SSL errors are to be expected.
+            if not getattr(self, '_shutdown', False):
+                # Notify all callbacks so that exceptions occur
+                # in all waiters.
+                with self.callbacks_lock:
+                    for deferred in self.callbacks.values():
+                        deferred.resolve(e)
+                with self.subscriptions_lock:
+                    for queues in self.subscriptions.values():
+                        for queue in queues:
+                            queue.put(e)
+                # Also shut down the connection so that the main thread
+                # doesn't keep sending while not getting a response.
+                self.conn.close()
+                # Finally, re-raise the exception in the thread
+                raise
         log.debug('client.read_proc now shut down')
 
     def execute(self, cmd, **data):
@@ -367,7 +371,10 @@ class Remote(object):
     def _read_proc(self, queue):
         try:
             while not getattr(self, '_shutdown', False):
-                msg = queue.get()
+                try:
+                    msg = queue.get(timeout=0.2)
+                except Empty:
+                    continue
                 if msg['type'] == 'serverStatus':
                     # TODO: Thread: needs to lock!
                     self.client._process_fee_update(msg)
