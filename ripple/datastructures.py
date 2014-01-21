@@ -1,4 +1,5 @@
 from decimal import Decimal
+import json
 
 
 class RipplePrimitive(dict):
@@ -19,6 +20,12 @@ class RipplePrimitive(dict):
 
     def __repr__(self):
         return '<%s %s>' % (self.__class__.__name__, dict.__repr__(self))
+
+    def __unicode__(self):
+        return json.dumps(self.__json__())
+
+    def __json__(self):
+        return self.data
 
 
 class tupledict(list):
@@ -67,6 +74,49 @@ class RippleStateEntry(RipplePrimitive):
         if self.HighLimit.issuer == account:
             return Decimal(self.HighLimit.value)
         raise ValueError('%s is not a party' % account)
+
+
+class Amount(RipplePrimitive):
+
+    def __init__(self, data):
+        if isinstance(data, dict):
+            # Proper currency structure
+            RipplePrimitive.__init__(self, data)
+        else:
+            # Parse the amount
+            currency = 'XRP'
+            issuer = None
+            if isinstance(data, int):
+                # A raw xrp number in drops:
+                value = xrp(data)
+            elif isinstance(data, basestring):
+                if '.' in data:
+                    value = Decimal(data)
+                else:
+                    # For safety, so there can be no confusion.
+                    raise ValueError('When passing a string as amount, it '
+                                     'needs to include a decimal point.')
+            elif isinstance(data, Decimal):
+                # Use as provided
+                value = data
+            else:
+                # TODO: Still need to support IOUs
+                raise ValueError('cannot handle amount: %s' % data)
+
+            RipplePrimitive.__init__(self, {
+                'currency': currency,
+                'issuer': issuer,
+                'value': value
+            })
+
+    def __json__(self):
+        if self.currency == 'XRP':
+            in_drops = (self.value * xrp_base)
+            assert int(in_drops) == in_drops
+            return int((self.value * xrp_base))
+        else:
+            return RipplePrimitive.__json__(self)
+
 
 
 class AccountRootEntry(RipplePrimitive):

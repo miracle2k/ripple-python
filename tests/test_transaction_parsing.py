@@ -176,4 +176,3 @@ def test_payment_unknown():
     # the 4th intermediary is the IOU issuer, and this really needs to be
     # reported separately.
     assert tx.analyze_path() == {'offers': 3, 'intermediaries': 3}
-

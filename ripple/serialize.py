@@ -221,6 +221,11 @@ def serialize_field(stream, name, value):
     if name == 'TransactionResult' and isinstance(value, basestring):
         value = TRANSACTION_RESULT_VALUES[value]
 
+    if hasattr(value, '__json__'):
+        # This indicates it's from our datastructures module, and we
+        # need to save the raw value it represents (ex: Amount object).
+        value = value.__json__()
+
     TypeSerializers.STInt8(stream, tag_byte)
     if type_bits >= 16:
         TypeSerializers.STInt8(stream, type_bits)
