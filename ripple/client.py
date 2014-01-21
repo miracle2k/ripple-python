@@ -1,11 +1,15 @@
+from Queue import Queue
+from decimal import Decimal
 import json
+import threading
 import websocket
 import logging
+from ripple import Amount
 from .serialize import serialize_object
-from .sign import hash_transaction, HASH_TX_ID
+from .sign import hash_transaction, HASH_TX_ID, get_ripple_from_secret, sign_transaction
 
 
-__all__ = ('Remote',)
+__all__ = ('Remote', 'Client')
 
 
 log = logging.Logger('ripple.client')
@@ -13,13 +17,28 @@ log.addHandler(logging.StreamHandler())
 log.addHandler(logging.NullHandler())
 
 
-class ResponseError(Exception):
+class RippleError(Exception):
     pass
 
 
-# TODO: Support calculating a fee based on the server, see:
-# ripple-lib:server.js:feeTxUnit()
-FEE_DEFAULT = 10
+class ResponseError(RippleError):
+    pass
+
+
+FEE_DEFAULTS = {
+    'fee_ref': 10,       # cost of reference transaction in "fee units"
+    'fee_base': 10,      # cost of reference transactios in XRP
+    'load_base': 256,
+    'load_factor': 256,
+    'base_fee': 10       # default cost of a transaction in units
+}
+
+
+class RippleEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if hasattr(obj, '__json__'):
+            return obj.__json__()
+        return json.JSONEncoder.default(self, obj)
 
 
 def transaction_hash(tx_json):
@@ -33,22 +52,179 @@ def transaction_hash(tx_json):
     return hash_transaction(tx_json, HASH_TX_ID)
 
 
-class Remote(object):
+class DeferredResponse(object):
+    def __init__(self):
+        self.resolved = threading.Event()
+        self.response = None
+        self.resulter = None
+
+    def wait(self, timeout=None):
+        self.resolved.wait(timeout)
+
+        if isinstance(self.response, Exception):
+            raise self.response
+
+        if not self.response['status'] == 'success':
+            raise ResponseError(self.response)
+        result = self.response['result']
+        if self.resulter:
+            result = self.resulter(result)
+        return result
+
+    def resolve(self, response):
+        self.response = response
+        self.resolved.set()
+
+
+class SubscriptionQueue(Queue):
+
+    def get(self, block=True, timeout=None):
+        result = Queue.get(self, block, timeout)
+        if isinstance(result, Exception):
+            raise result
+        return result
+
+
+
+class Client(object):
     """Connection to Ripple network.
+
+    This is supposed to be more of a low-level API, representing
+    a single connection. You'll have to handle errors manually.
+
+    It uses a thread internally, and is itself threadsafe. Subscriptions
+    return a queue that can be read from.
+
+    Some notes on the design
+    ------------------------
+
+    I still haven't grogged how to do network APIs. I think my confusion
+    stems from the desire to enable both blocking and non-blocking use
+    cases, hating threads, nor wanting to rely on greenlets.
+
+    Here are some things that were considered:
+
+    1. Expose a Deferred object to the user. This feels like re-inventing
+       Twisted (up to API methods needing to inject code "on success" to
+       fetch the desired data from the result structure).
+       This approach means the user has an async-interface within a single
+       thread of his own, which seems a waste considering we only have
+       a single websocket connection to begin with.
+
+    2. Keep the wait() internal, the external API methods block until a
+       result is available. Makes for a nice sync API while still letting
+       the user use multiple threads if he so desires (like handling the
+       results of a subscribe). This is what we are doing now.
+
+    3. Use no thread thread at all, not allowing async usage. That
+       means the user has to clear subscription messages in this main
+       thread in between regular interactions. I felt this would be too
+       restrictive.
+
+    4. Do not use an internal thread but still support async usage. I
+       believe this to be possible along the lines of this pseudo code::
+
+           def consume_one(self):   # read subscription messages
+                dispatch_queue_first
+                with self.recv_lock:
+                    msg = self.conn.recv(block=False)
+                    dispatch_queue_again
+                    if msg: dispatch_msg(triggers command wait() events)
+
+            def wait(self, id):
+                check_queue_first
+                with self.recv_lock:
+                    check_queue_again
+                    receive_and_add_to_queue(until msg with id found)
+
+        The downside: while waiting for one response, all other readers
+        are blocked, even if a response for their command has come in.
+        Given that responses should generally be immediate, presumably
+        this isn't that big a deal. Still, it felt a bit hacky.
+
+
+    How should subscriptions be handled? In general, when a thread is
+    used, we'd either have to do the callback from the thread, which
+    sucks, or, what I'm doing know, giving the consumer a queue which
+    he'll have to read from at his convenience.
     """
+    # TODO: Better handle keyboard interrupts while waiting:
+    #    http://stackoverflow.com/a/14421297/15677
 
     def __init__(self, url):
-        self.conn = websocket.create_connection(url, timeout=10)
-        self.queue = []
+        self.fee_info = FEE_DEFAULTS.copy()
+
+        # These will be used to sync the reading thread with the threads
+        # that are consuming us. Yes, single dict and lock could be used,
+        # but when setting up a subscription we need to wait for a server
+        # ok but can't miss a message afterwards, so a separate lock
+        # allows us to block incoming subscriptions update while still
+        # setting up the callback queue.
+        self.callbacks = {}
+        self.subscriptions = {}
+        self.callbacks_lock = threading.RLock()
+        self.subscriptions_lock = threading.RLock()
+
+        # TODO: We need to deal with timeouts (a ping thread?)
+        self.conn = websocket.create_connection(url, timeout=30)
+        # This thread will do the reading in the basis for in turn
+        # supporting multiple threads to use *this* class.
+        self._read_thread = thread = threading.Thread(target=self._read_proc)
+        thread.setDaemon(True)
+        thread.start()
+
+    def close(self):
+        log.debug('client.close()')
+        self._shutdown = True
+        self.conn.close()
 
     def _mkid(self):
         setattr(self, '_id', getattr(self, '_id', 0) + 1)
         return self._id
 
-    def add_fee(self, tx, amount=None):
-        """Add a fee to the given transaction dict.
-        """
-        tx['Fee'] = amount or FEE_DEFAULT
+    def _read_proc(self):
+        """Runs the reading thread."""
+        try:
+            while not getattr(self, '_shutdown', False):
+                msg = json.loads(self.conn.recv())
+                log.debug('<<<<<<<< receiving % s', json.dumps(msg, indent=2))
+
+                type = msg['type']
+
+                # Response to a regular command
+                if type == 'response':
+                    with self.callbacks_lock:
+                        if msg['id'] in self.callbacks:
+                            self.callbacks[msg['id']].resolve(msg)
+                            continue
+
+                # Else this will be a subscription response
+                with self.subscriptions_lock:
+                    if type in self.subscriptions:
+                        # Multiple subscriptions may have been issued for
+                        # the same type, notify all of them.
+                        for queue in self.subscriptions[type]:
+                            queue.put(msg)
+                        continue
+
+                raise ValueError(
+                    u'unexpected message from server: %s' % unicode(msg))
+        except Exception, e:
+            # Notify all callbacks so that exceptions occur
+            # in all waiters.
+            with self.callbacks_lock:
+                for deferred in self.callbacks.values():
+                    deferred.resolve(e)
+            with self.subscriptions_lock:
+                for queues in self.subscriptions.values():
+                    for queue in queues:
+                        queue.put(e)
+            # Also shut down the connection so that the main thread
+            # doesn't keep sending while not getting a response.
+            self.conn.close()
+            # Finally, re-raise the exception in the thread
+            raise
+        log.debug('client.read_proc now shut down')
 
     def execute(self, cmd, **data):
         # Prepare the command to send
@@ -56,23 +232,68 @@ class Remote(object):
         data['id'] = self._mkid()
         data = {k:v for k, v in data.items() if v is not None}
 
-        log.debug(json.dumps(data, indent=2))
-        self.conn.send(json.dumps(data))
+        log.debug('>>>>>>>> sending %s', json.dumps(data, indent=2))
+        self.conn.send(json.dumps(data, cls=RippleEncoder))
+        with self.callbacks_lock:
+            self.callbacks[data['id']] = DeferredResponse()
+        msg = self.callbacks[data['id']].wait()
+        return msg
 
-        response = self.wait(data['id'])
-        log.debug(response)
-        if not response['status'] == 'success':
-            raise ResponseError(response)
-        return response['result']
+    def subscribe(self, streams=None):
+        def add_queue(name, queue):
+            queues = self.subscriptions.setdefault(name, [])
+            queues.append(queue)
 
-    def wait(self, id):
-        msg = self.conn.recv()
-        msg = json.loads(msg)
-        if msg['id'] == id:
-            return msg
-        # At some point I'd like to support subscribes/threads, and other
-        # out-of-order response types.
-        raise ValueError('response has id %s, expected %s' % (msg['id'], id))
+        with self.subscriptions_lock:
+            result = self.execute('subscribe', streams=streams)
+            self._process_fee_update(result)
+            # Setup a queue for subscription messages
+            queue = SubscriptionQueue()
+            for stream in streams:
+                if 'ledger' == stream:
+                    add_queue('ledgerClosed', queue)
+                elif 'transactions' == stream:
+                    add_queue('transaction', queue)
+                elif 'server' == stream:
+                    add_queue('serverStatus', queue)
+                else:
+                    raise ValueError(stream)
+
+        return result, queue
+
+    def add_fee(self, tx, amount=None, cushion='1.2'):
+        """Add a fee to the given transaction dict.
+        """
+        if not amount:
+            # https://ripple.com/wiki/Transaction_Fee#Calculating_the_Transaction_Fee
+            # https://ripple.com/wiki/Calculating_the_Transaction_Fee
+            # Note: The ripple client uses a design where every transaction
+            # may have a different cost in fee units, but then just uses
+            # 10 as a default. We'll ignore it.
+            D = Decimal
+            i = lambda k: D(self.fee_info[k])
+            # One fee unit in XRP
+            one_unit = i('fee_base') / i('fee_ref')
+            # Therefore the cost =
+            fee = one_unit * i('base_fee')
+            # Consider the load
+            fee = fee * (i('load_factor') / i('load_base'))
+            # Add a safety cushion
+            amount = int(fee * D(cushion))
+        tx['Fee'] = amount
+
+    def _process_fee_update(self, msg):
+        """Call this with a message like a server_info response. Will
+        affect fee calculations."""
+        i = self.fee_info
+        # Result to a subscribe command will contain those
+        i['load_base'] = msg.get('load_base', i['load_base'])
+        i['load_factor'] = msg.get('load_factor', i['load_factor'])
+
+        # Note: the ledger stream gives us data for fee_ref and fee_base.
+        # The ripple client uses these to calculate the XRP value of a
+        # fee unit, though the Wiki instructions to calculate fees do not
+        # mention it. We'll ignore it for now.
 
     def request_account_info(self, account):
         return self.execute("account_info", account=account)['account_data']
@@ -89,8 +310,186 @@ class Remote(object):
         if isinstance(tx_blob, dict):
             tx_blob = serialize_object(tx_blob)
 
-        result = self.execute(
+        return self.execute(
             "submit", tx_blob=tx_blob, tx_json=tx_json, secret=secret)
-        print(result)
 
 
+class DeferredTransaction(object):
+    # TODO: Can we just re-use DeferredResponse? - at least extend it
+
+    def __init__(self, tx, txhash):
+        self.tx = tx
+        self.txhash = txhash
+        self.resolved = threading.Event()
+        self.result = self.error = None
+
+    def wait(self, timeout=None):
+        self.resolved.wait(timeout)
+        if isinstance(self.result, Exception):
+            raise self.result
+        if self.error:
+            raise RippleError(self.error)
+        return self.result
+
+    def resolve(self, result=None, error=None):
+        self.result = result
+        self.resolved.set()
+
+
+class Remote(object):
+    """This is supposed to be a more high-level API that ideally
+    will be able to manage multiple server connections, can track
+    the state of submitted transactions etc.
+
+    This is partially async. That is, it blocks while waiting for
+    direct server responses, but is async for transaction handling,
+    where the server cannot be expected to give a final response
+    without significant delay.
+    """
+
+    def __init__(self, url, secret):
+        self.secret = secret
+        self._sequence_cache = {}
+        self._pending_transactions = {}
+        self._pending_transactions_lock = threading.RLock()
+
+        # Connect to the client
+        self.client = Client(url)
+        # Start a subscription to transaction updates
+        # TODO: Should we only do this once we begin sending payments?
+        _, queue = self.client.subscribe(streams=['server', 'transactions'])
+
+        # This thread will deal with subscription updates
+        self.read_thread = threading.Thread(target=self._read_proc, args=(queue,))
+        self.read_thread.setDaemon(True)
+        self.read_thread.start()
+
+    def _read_proc(self, queue):
+        try:
+            while not getattr(self, '_shutdown', False):
+                msg = queue.get()
+                if msg['type'] == 'serverStatus':
+                    # TODO: Thread: needs to lock!
+                    self.client._process_fee_update(msg)
+
+                if msg['type'] == 'transaction':
+                    # See if this is a transaction that interests us
+                    hash = msg['transaction']['hash']
+                    with self._pending_transactions_lock:
+                        if hash in self._pending_transactions:
+                            # The JS client, when a transaction comes in,
+                            # doesn't seem to check any field except
+                            # validated, and then just considered the
+                            # transaction a success, which I find a bit
+                            # strange. But do likewise.
+                            if not msg['validated']:
+                                msg = RippleError(
+                                    'received non-validated transaction, is '
+                                    'this legit? %s' % msg)
+
+                            self._pending_transactions[hash].resolve(msg)
+                            del self._pending_transactions[hash]
+
+        except Exception, e:
+            # On error, notify all watches
+            with self._pending_transactions_lock:
+                for transaction in self._pending_transactions.values():
+                    transaction.resolve(e)
+            raise
+
+        log.debug('remote.read_proc now shut down')
+
+    def close(self):
+        log.debug('remote.close()')
+        self._shutdown = True
+        self.client.close()
+
+    def get_sequence_number(self, account):
+        if not account in self._sequence_cache:
+            # Will update the cache
+            self.account_info(account)
+        current = self._sequence_cache[account]
+        self._sequence_cache[account] += 1
+        return current
+
+    def account_info(self, account):
+        info = self.client.request_account_info(account)
+        self._sequence_cache[account] = info['Sequence']
+        return info
+
+    def send_payment(self, destination, amount, account=None):
+        # Parse the amount
+        amount = Amount(amount)
+
+        # Determine the sender
+        if not account:
+            if not self.secret:
+                raise ValueError(
+                    'If you do not provide a sender account, you need to '
+                    'give a secret so one can be derived.')
+            account = get_ripple_from_secret(self.secret)
+
+        tx = {
+            "TransactionType" : "Payment",
+            "Account" : account,
+            "Destination" : destination,
+            "Amount" : amount,
+        }
+
+        # Add a fee
+        self.client.add_fee(tx)
+
+        # Add sequence number
+        tx['Sequence'] = self.get_sequence_number(account)
+
+        # Sign the transaction
+        sign_transaction(tx, self.secret)
+        txhash = transaction_hash(tx)
+
+        # Prepare a deferred result value
+        pending = DeferredTransaction(tx, txhash)
+
+        # Now submit
+        result = self.client.submit(tx_blob=tx)
+
+        # Let's deal with the result
+        # This is analog to how ripple-client deals with transactions.
+        # Plus, see:
+        #   https://ripple.com/wiki/Transaction_errors
+        #   https://ripple.com/wiki/Robustly_submitting_a_transaction
+        error_code = result['engine_result']
+        error_cat = error_code[:3]
+
+        if error_cat == 'tec':
+            # Fee was claimed, but transaction did not succeed.
+            # Wiki claims this may be a proposed disposition, but JS client
+            # just goes to error and finalizes.
+            pending.resolve(error=error_cat)
+        elif error_cat == 'tes':
+            # Success - proposed disposition.
+            # JS client will emit an unused proposed event and then will
+            # simply watch the transaction stream to confirm.
+            self._pending_transactions[txhash] = pending
+        elif error_cat == 'tef':
+            # 'Failure': JS client will error out the transaction, unless
+            # the message is tefPAST_SEQ: then it will resubmit three
+            # ledgers later with a locally adjusted sequence number to
+            # account for transactions happened in the intermediary.
+            # TODO:  We don't do resubmission for now.
+            pending.resolve(error=error_cat)
+        elif error_cat == 'ter':
+            # Did not succeed initially, but may still, according to Wiki.
+            # Despite this, the JS client first explicitly fetches a new
+            # sequence number from the server and then resubmits. This
+            # sounds like a potential race condition leading to a double
+            # spend to me.
+            # TODO: Anyway, we don't do resubmission for now.
+            pending.resolve(error=error_cat)
+        else:
+            # Default - must be tem (malFormed) or tel (local); those are
+            # final failures.
+            # TODO: JS client resubmits on tooBusy one ledger later
+            pending.resolve(error=error_cat)
+            self._sequence_cache[account] -= 1
+
+        return  pending
