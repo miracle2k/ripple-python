@@ -49,6 +49,7 @@ def analyze_transaction(txstr):
             data.append(tx.hash)
             data.append('{0} {1}/{2}'.format(*tx.amount_received))
             data.append('to: %s' % tx.Destination)
+        if not tx.is_xrp_received:
             data.append('new balance: %s' % tx.recipient_balance)
             data.append('of limit: %s' % tx.recipient_trust_limit)
             data.append('path: intermediaries={intermediaries}, offers={offers}'.format(

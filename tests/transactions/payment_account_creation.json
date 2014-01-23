@@ -1,0 +1,51 @@
+The recipient account was created by the transaction.
+
+---------------
+
+{
+  "hash": "586707F2B856B619C807BFF5450FDDE4C38BBE4D149B5F0E18D46D3DAAFF06DE",
+  "Sequence": 1,
+  "TransactionType": "Payment",
+  "SigningPubKey": "0282EE731039929E97DB6AEC242002E9AA62CD62B989136DF231F4BB9B8B7C7EB2",
+  "Fee": "12",
+  "Amount": "35000000",
+  "metaData": {
+    "TransactionResult": "tesSUCCESS",
+    "TransactionIndex": 0,
+    "AffectedNodes": [
+      {
+        "ModifiedNode": {
+          "LedgerIndex": "94C21C59F05F612F946C03B6AEAFF521D940CECF10A1F73D26558A107400DB15",
+          "PreviousTxnLgrSeq": 4549611,
+          "FinalFields": {
+            "Flags": 0,
+            "Balance": "1209999988",
+            "Sequence": 2,
+            "Account": "rKzE5DTyF9G6z7k7j27T2xEas2eMo85kmw",
+            "OwnerCount": 0
+          },
+          "LedgerEntryType": "AccountRoot",
+          "PreviousFields": {
+            "Sequence": 1,
+            "Balance": "1245000000"
+          },
+          "PreviousTxnID": "F05E9D94C649CBCE5593C829A48EB7B14AD8DF663DF928E079EB11847A3AEF47"
+        }
+      },
+      {
+        "CreatedNode": {
+          "LedgerEntryType": "AccountRoot",
+          "LedgerIndex": "F01C38321A1305FBCF0985CE6274F036C3E27C9F66351C3BA826317364AA64A0",
+          "NewFields": {
+            "Balance": "35000000",
+            "Sequence": 1,
+            "Account": "rKjWekFEkDWhUhWtu9Fnf7vsT7RHHhjiCU"
+          }
+        }
+      }
+    ]
+  },
+  "Destination": "rKjWekFEkDWhUhWtu9Fnf7vsT7RHHhjiCU",
+  "Account": "rKzE5DTyF9G6z7k7j27T2xEas2eMo85kmw",
+  "TxnSignature": "30450221008C793CF95AEFF7A534D69FBEA80054669904A6EFCFA1FB3A1C1872B8CF8F8D8E0220152B25273E28BB23C2B1EEE7812BB2EA9B4067B60AEC69D5C27D3CAF7AE3B3CC"
+}

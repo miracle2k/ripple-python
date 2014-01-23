@@ -179,6 +179,17 @@ class NodeModification(RipplePrimitive):
         return getattr(self.new, item)
 
 
+class NodeCreation(NodeModification):
+    """An entry in the ``AffectedNodes`` key of a processed transaction.
+    """
+
+    def __init__(self, data):
+        RipplePrimitive.__init__(self, data)
+        node_class = LedgerEntries[data['LedgerEntryType']]
+        self.new = node_class(data['NewFields'])
+        self.old = None
+        self.type = type(self.new)
+
 class NodeDeletion(NodeModification):
     """An entry in the ``AffectedNodes`` key of a processed transaction.
     """
@@ -228,6 +239,7 @@ class Transaction(RipplePrimitive):
             assert len(list(node.keys())) == 1
             change_type = list(node.keys())[0]
             node_class = {
+                'CreatedNode': NodeCreation,
                 'ModifiedNode': NodeModification,
                 'DeletedNode': NodeDeletion}[change_type]
             yield node_class(list(node.values())[0])

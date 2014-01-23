@@ -4,6 +4,7 @@ from os import path
 import pytest
 from ripple import Transaction, TransactionSubscriptionMessage
 
+# TODO: I'd like to move the test assertions into the JSON file, and eval them.
 
 def open_transaction(name):
     filename = path.join(path.dirname(__file__), 'transactions', name)
@@ -165,6 +166,13 @@ def test_payment_three_sending_issuers():
     # The simplified single-accessor fail in this case
     with pytest.raises(ValueError):
         tx.sender_trust_limit
+
+
+def test_payment_account_creation():
+    txstr = open_transaction('payment_account_creation.json')
+    tx = Transaction(txstr)
+
+    assert tx.amount_received == (Decimal('35'), 'XRP', None)
 
 
 def test_payment_unknown():
