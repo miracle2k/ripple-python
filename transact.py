@@ -1,9 +1,10 @@
 #!/usr/bin/env python
-import Queue
 import json
 
 import os
 import sys
+import Queue
+import argparse
 
 from ripple import sign_transaction, Client, Amount
 from ripple.client import transaction_hash, Remote, RippleEncoder
@@ -14,82 +15,155 @@ LOCAL_SIGNING = int(os.environ.get('LOCAL_SIGNING', 1))
 
 
 def main(argv):
-    if len(argv) <= 1:
-        print "Usage: transact.py <secret> payment <destination> <amount>"
+    parser = argparse.ArgumentParser(argv[0])
+    parser.add_argument('secret')
+    parser.add_argument('--server')
+    # Add a subparser for every command defined
+    cmd_parsers = parser.add_subparsers(help='command help', dest='command')
+    commands = {}
+    for _, value in globals().items():
+        if isinstance(value, type) and issubclass(value, Command) \
+                and not value is Command:
+            commands[value.name] = value
+            subparser = cmd_parsers.add_parser(value.name)
+            value.add_args(subparser)
+
+    # Parse and resolve
+    ns = parser.parse_args(argv[1:])
+
+    # Do some manual validation
+    secret = ns.secret or os.environ.get('RIPPLE_SECRET')
+    if not secret:
+        print 'You need to provide --secret or RIPPLE_SECRET'
         return 1
 
-    secret = argv[1]
-    command = argv[2]
-    args = argv[3:]
-
-    assert command == 'payment', 'Only payments supported right now'
-
-    #cmd_pay_2(secret, *args)
-    #return
-
-    # Connect to rippled
-    remote = Client(os.environ.get('RIPPLE_URI', 'wss://s1.ripple.com'))
-
-    # Execute the command
-    cmd_pay(remote, secret, *args)
+    # Run the command
+    cmd_klass = commands[ns.command]
+    cmd = cmd_klass(
+        ns.server or os.environ.get('RIPPLE_URI') or 'wss://s_east.ripple.com',
+        secret)
+    return cmd.run(ns)
 
 
-def cmd_pay(remote, secret, destination, amount):
-    sender = get_ripple_from_secret(secret)
-    print('Sender: {}'.format(sender))
+class Command(object):
 
-    # Construct the basic transaction
-    tx = {
-        "TransactionType" : "Payment",
-        "Account" : sender,
-        "Destination" : destination,
-        "Amount" : Amount(amount),
-    }
-    remote.add_fee(tx)
+    def __init__(self, ripple_uri, secret):
+        self.ripple_uri = ripple_uri
+        self.secret = secret
 
-    # We need to determine the sequence number
-    sequence = remote.request_account_info(sender)['Sequence']
-    tx['Sequence'] = sequence
+    @classmethod
+    def add_args(cls, parser):
+        pass
 
-    # Sign the transaction
-    if LOCAL_SIGNING:
-        sign_transaction(tx, secret)
+    @property
+    def remote(self):
+        if not hasattr(self, '_remote'):
+            self._remote = Remote(self.ripple_uri, self.secret)
+        return self._remote
 
-    print('I will now submit:')
-    print(json.dumps(tx, indent=2))
+    def handle(self, result):
+        print('TxHash: %s' % result.hash)
+        result = result.wait()
+        print(result['engine_result_message'])
 
-    if not LOCAL_SIGNING:
-        print(remote.submit(tx_json=tx, secret=secret))
-    else:
-        # Signup to the transaction stream so we'll be able to verify
-        # the transaction result.
-        result, queue = remote.subscribe(streams=['transactions'])
-
-        # Submit the transaction.
-        remote.submit(tx_blob=tx)
-        txhash = transaction_hash(tx)
-        print('Submitted transaction with hash %s, waiting for confirm' % txhash)
-
-        # Look for the final disposition.
-        # TODO: That would actually involve looking at the values though
-        # rather than just printing the first status update.
-        while True:
-            try:
-                tx = queue.get(timeout=1)
-            except Queue.Empty:
-                continue
-
-            if tx['transaction']['hash'] == txhash:
-                print('FOUND: %s' % tx)
-                break
+    @property
+    def account(self):
+        return get_ripple_from_secret(self.secret)
 
 
-def cmd_pay_2(secret, destination, amount):
-    # Example for payment with high-level API
-    remote = Remote(os.environ.get('RIPPLE_URI', 'wss://s1.ripple.com'), secret)
-    transaction = remote.send_payment(destination, int(amount))
-    print(transaction.wait())
+class GetAddress(Command):
+    """Get ripple address for a secret.
+    """
+    name = 'get-address'
+    def run(self, ns):
+        print(get_ripple_from_secret(self.secret))
+
+
+class RawCommand(Command):
+    """Submit JSON as specified by the user."""
+
+    name = 'raw'
+
+    @classmethod
+    def add_args(self, parser):
+        parser.add_argument('json', help='Custom JSON transaction')
+
+    def run(self, ns):
+        tx = json.loads(ns.json)
+        result = self.remote.submit(tx['Account'], tx)
+        self.handle(result)
+
+
+def yesno(v):
+    try:
+        return {'yes': True, 'no': False}[v]
+    except KeyError:
+        raise argparse.ArgumentTypeError('%s: want yes or no' % v)
+
+
+class AccountSet(Command):
+    """Set account properties."""
+
+    # TODO: I don't quite understand the flag setting yet. The account
+    # value afterwards is always a single flag, not a set of them.
+
+    name = 'account-set'
+
+    tfRequireDestTag = 0x00010000
+    tfOptionalDestTag = 0x00020000
+    tfRequireAuth = 0x00040000
+    tfOptionalAuth = 0x00080000
+    tfDisallowXRP = 0x00100000
+    tfAllowXRP = 0x00200000
+
+    @classmethod
+    def add_args(self, parser):
+        parser.add_argument(
+            '--allow-xrp', nargs='?', type=yesno, const='yes',
+            help='Account may receive XRP')
+        parser.add_argument(
+            '--require-dest', nargs='?', type=yesno, const='yes',
+            help='Payments require a destination tag')
+        parser.add_argument(
+            '--domain', help='Associate a domain with this account')
+
+    def run(self, ns):
+        flags = 0
+        if ns.allow_xrp is not None:
+            flags |= self.tfAllowXRP if ns.allow_xrp else self.tfDisallowXRP
+        if ns.require_dest is not None:
+            flags |= self.tfRequireDestTag if ns.require_dest else self.tfOptionalDestTag
+
+        tx = {
+            "TransactionType": "AccountSet",
+            "Account": self.account
+        }
+        if flags:
+            tx['Flags'] = flags
+
+        if ns.domain:
+            tx['Domain'] = ns.domain.lower().encode('hex').upper()
+
+        result = self.remote.submit(tx['Account'], tx)
+        self.handle(result)
+
+
+
+class PaymentCommand(Command):
+    """Send a payment."""
+
+    name = 'payment'
+
+    @classmethod
+    def add_args(self, parser):
+        parser.add_argument('destination', help='Destination account')
+        parser.add_argument('amount', help='Amount to send')
+
+    def run(self, ns):
+        result = self.remote.send_payment(ns.destination, int(ns.amount))
+        self.handle(result)
 
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv) or 0)
+

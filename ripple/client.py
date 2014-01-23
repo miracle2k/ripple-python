@@ -327,7 +327,7 @@ class DeferredTransaction(object):
 
     def __init__(self, tx, txhash):
         self.tx = tx
-        self.txhash = txhash
+        self.hash = txhash
         self.resolved = threading.Event()
         self.result = self.error = None
 
@@ -341,6 +341,7 @@ class DeferredTransaction(object):
 
     def resolve(self, result=None, error=None):
         self.result = result
+        self.error = error
         self.resolved.set()
 
 
@@ -447,21 +448,24 @@ class Remote(object):
             "Amount" : amount,
         }
 
+        return self.submit(account, tx)
+
+    def submit(self, account, tx_json):
         # Add a fee
-        self.client.add_fee(tx)
+        self.client.add_fee(tx_json)
 
         # Add sequence number
-        tx['Sequence'] = self.get_sequence_number(account)
+        tx_json['Sequence'] = self.get_sequence_number(account)
 
         # Sign the transaction
-        sign_transaction(tx, self.secret)
-        txhash = transaction_hash(tx)
+        sign_transaction(tx_json, self.secret)
+        txhash = transaction_hash(tx_json)
 
         # Prepare a deferred result value
-        pending = DeferredTransaction(tx, txhash)
+        pending = DeferredTransaction(tx_json, txhash)
 
         # Now submit
-        result = self.client.submit(tx_blob=tx)
+        result = self.client.submit(tx_blob=tx_json)
 
         # Let's deal with the result
         # This is analog to how ripple-client deals with transactions.
@@ -475,7 +479,7 @@ class Remote(object):
             # Fee was claimed, but transaction did not succeed.
             # Wiki claims this may be a proposed disposition, but JS client
             # just goes to error and finalizes.
-            pending.resolve(error=error_cat)
+            pending.resolve(error=error_code)
         elif error_cat == 'tes':
             # Success - proposed disposition.
             # JS client will emit an unused proposed event and then will
@@ -487,7 +491,7 @@ class Remote(object):
             # ledgers later with a locally adjusted sequence number to
             # account for transactions happened in the intermediary.
             # TODO:  We don't do resubmission for now.
-            pending.resolve(error=error_cat)
+            pending.resolve(error=error_code)
         elif error_cat == 'ter':
             # Did not succeed initially, but may still, according to Wiki.
             # Despite this, the JS client first explicitly fetches a new
@@ -495,12 +499,12 @@ class Remote(object):
             # sounds like a potential race condition leading to a double
             # spend to me.
             # TODO: Anyway, we don't do resubmission for now.
-            pending.resolve(error=error_cat)
+            pending.resolve(error=error_code)
         else:
             # Default - must be tem (malFormed) or tel (local); those are
             # final failures.
             # TODO: JS client resubmits on tooBusy one ledger later
-            pending.resolve(error=error_cat)
+            pending.resolve(error=error_code)
             self._sequence_cache[account] -= 1
 
         return  pending
