@@ -118,7 +118,6 @@ def get_ripple_from_pubkey(pubkey):
     """
     ripemd160 = hashlib.new('ripemd160')
     ripemd160.update(hashlib.sha256(pubkey).digest())
-    print(ripemd160.digest().encode('hex').upper())
     return RippleBaseDecoder.encode(ripemd160.digest())
 
 
