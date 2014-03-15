@@ -455,13 +455,10 @@ class PaymentTransaction(Transaction):
 
             [('rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B', Decimal('500'))]
         """
-        if self.is_xrp_received:
-            return []
-        else:
-            nodes = self._get_nodes(account=self.Account, type=RippleStateEntry)
-            return tupledict(
-                [(node.counter_party(self.Account),
-                 node.new.trust_limit(self.Account)) for node in nodes])
+        nodes = self._get_nodes(account=self.Account, type=RippleStateEntry)
+        return tupledict(
+            [(node.counter_party(self.Account),
+             node.new.trust_limit(self.Account)) for node in nodes])
 
     # If there is only one issuer being received, make access easier.
     # These raise an exception when more than one issuer is involved.
