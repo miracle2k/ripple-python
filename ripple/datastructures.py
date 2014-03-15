@@ -148,6 +148,10 @@ class AccountRootEntry(RipplePrimitive):
     """
 
     def affects_account(self, account):
+        if not 'Account' in self:
+            # A transactions AffectedNodes can contain an AccountRoot
+            # node entry without fields, so account for this.
+            return False
         return self.Account == account
 
 
@@ -188,12 +192,12 @@ class NodeModification(RipplePrimitive):
     def __init__(self, data):
         RipplePrimitive.__init__(self, data)
         node_class = LedgerEntries[data['LedgerEntryType']]
-        self.new = node_class(data['FinalFields'])
+        self.new = node_class(data.get('FinalFields', {}))
         if 'PreviousFields' in data:
             self.old = node_class(
                 # PreviousFields only contains parts, presumably those
                 # that changed, so add a fallback to the shared data).
-                shadow(data['PreviousFields'], data['FinalFields']))
+                shadow(data['PreviousFields'], data.get('FinalFields', {})))
         else:
             self.old = None
         self.type = type(self.new)

@@ -184,3 +184,12 @@ def test_payment_unknown():
     # the 4th intermediary is the IOU issuer, and this really needs to be
     # reported separately.
     assert tx.analyze_path() == {'offers': 3, 'intermediaries': 3}
+
+
+def test_account_root_node_without_fields():
+    txstr = open_transaction('account_root_node_without_fields.json')
+    tx = Transaction(txstr)
+
+    # It we can do this to all nodes w/o exception, we are good
+    for node in tx.affected_nodes:
+        node.affects_account('foo')
