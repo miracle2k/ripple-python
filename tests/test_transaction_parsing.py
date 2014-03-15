@@ -25,6 +25,7 @@ def test_payment_xrp():
     assert tx.currencies_received == ('XRP', None)
     assert tx.recipient_balances == [(None, (Decimal('16230.610429')))]
     assert tx.recipient_trust_limits == []
+    assert tx.recipient_trust_limit == None
 
     assert tx.analyze_path() == {'offers': 0, 'intermediaries': 0}
 

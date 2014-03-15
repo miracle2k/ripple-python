@@ -217,6 +217,7 @@ class NodeCreation(NodeModification):
         self.old = None
         self.type = type(self.new)
 
+
 class NodeDeletion(NodeModification):
     """An entry in the ``AffectedNodes`` key of a processed transaction.
     """
@@ -312,7 +313,10 @@ class first(object):
         if len(multiple) > 1:
             raise ValueError('More than one issuer on recipient side, '
                              'use the multi-value access property')
-        return multiple[0][1]
+        elif len(multiple) == 0:
+            return None
+        else:
+            return multiple[0][1]
 
 
 class PaymentTransaction(Transaction):
