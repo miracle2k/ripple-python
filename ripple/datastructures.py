@@ -2,6 +2,19 @@ from decimal import Decimal
 import json
 
 
+# During debugging, this helps with the RipplePrimitive __getattr__
+# problem, described further down below.
+#class property(property):
+#    def __get__(self, obj, cls):
+#        try:
+#            return super(property, self).__get__(obj, cls)
+#        except AttributeError, e:
+#            import traceback
+#            traceback.print_exc()
+#            import sys
+#            sys.exit(1)
+
+
 class RipplePrimitive(dict):
     """Dict that allows attribute access."""
 
@@ -11,11 +24,21 @@ class RipplePrimitive(dict):
     def __getattr__(self, item):
         try:
             value = self[item]
+            # Convert nested dicts into RipplePrimitives on the fly on access
             if isinstance(value, dict) and not isinstance(value, RipplePrimitive):
                 value = RipplePrimitive(value)
                 self[item] = value
             return value
         except KeyError:
+            # XXX: This keeps hiding real AttributeErrors that occur during
+            # handling of a @property; if property "foo" somehow triggers
+            # an AttributeError, this will be called and will expose the
+            # exception we raise here instead of the original one. See also
+            # discussed here amongst other places:
+            # http://stackoverflow.com/questions/15401180/using-getattr-and-meeting-expected-behaviour-for-subclasses
+            # (see also the related Python bug report).
+            # One possible way to fix this might be implementing
+            # __getattribute__ instead and check if a property exists.
             raise AttributeError(item)
 
     def __repr__(self):
