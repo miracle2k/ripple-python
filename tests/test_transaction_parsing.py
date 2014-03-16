@@ -141,8 +141,8 @@ def test_payment_two_receiving_issuers():
         tx.recipient_trust_limit
 
 
-def test_payment_three_sending_issuers():
-    txstr = open_transaction('payment_multiple_sending_issuers.json')
+def test_payment_receiving_own_senders_thirdparty_ious():
+    txstr = open_transaction('payment_receiving_own_senders_thirdparty_ious.json')
     tx = Transaction(txstr)
 
     # We identify the correct recipient data

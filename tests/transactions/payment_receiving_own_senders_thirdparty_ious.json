@@ -4,8 +4,8 @@ r3ADD8kXSUKHd6zTCKfnKT3zV9EZHjzp1S is the recipient.
 For the receiver, the payment is split across different issuers:
 
 - rLju3NgFJn9jZuiyibyJM7asTVeVoueWWF (the sender's own IOUs).
-- rnziParaNb8nsU4aruQdwYE3j5jUcqjzFm (the recipient has a negative balance with them).
-- rhKJE9kFPz6DuK4KyL2o8NkCCNPKnSQGRL
+- rnziParaNb8nsU4aruQdwYE3j5jUcqjzFm (had IOUs from both the sender and recipient).
+- rhKJE9kFPz6DuK4KyL2o8NkCCNPKnSQGRL (takes the senders IOUs, gives their own IOUs to the recipient).
 
 --------------------------
 
