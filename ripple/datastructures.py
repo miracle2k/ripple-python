@@ -385,9 +385,13 @@ class PaymentTransaction(Transaction):
         """3-tuple of (amount, currency, issuers), representing the full
         amount received.
         """
+        if self.meta.get('DeliveredAmount'):
+            amount = self.meta.DeliveredAmount.value
+        else:
+            amount = self.Amount.value \
+                if isinstance(self.Amount, dict) else xrp(self.Amount)
         return tuple(
-            [self.Amount.value if isinstance(self.Amount, dict) else xrp(self.Amount)] +
-            list(self.currencies_received)
+            [amount] + list(self.currencies_received)
         )
 
     @property
