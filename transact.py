@@ -3,11 +3,9 @@ from __future__ import print_function
 import json
 import os
 import sys
-import Queue
 import argparse
 
-from ripple import sign_transaction, Client, Amount
-from ripple.client import transaction_hash, Remote, RippleEncoder
+from ripple.client import Remote
 from ripple.sign import get_ripple_from_secret
 
 
