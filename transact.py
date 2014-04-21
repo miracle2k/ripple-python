@@ -38,7 +38,7 @@ def main(argv):
     # Run the command
     cmd_klass = commands[ns.command]
     cmd = cmd_klass(
-        ns.server or os.environ.get('RIPPLE_URI') or 'wss://s_east.ripple.com',
+        ns.server or os.environ.get('RIPPLE_URI') or 'wss://s-east.ripple.com',
         secret)
     return cmd.run(ns)
 
