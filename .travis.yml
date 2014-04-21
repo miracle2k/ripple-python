@@ -1,0 +1,18 @@
+language: python
+python:
+  - 2.7
+  - 3.3
+  - pypy
+install:
+  - pip install pytest
+  - pip install pip install --process-dependency-links .
+script:
+  - py.test -m "not failing" tests/
+notifications:
+  email:
+    - michael@elsdoerfer.com
+branches:
+  only:
+    - master
+~
+~
