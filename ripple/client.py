@@ -195,7 +195,7 @@ class Client(object):
         """Runs the reading thread."""
         try:
             while not getattr(self, '_shutdown', False):
-                msg = json.loads(self.conn.recv())
+                msg = json.loads(self.conn.recv().decode('utf-8'))
                 log.debug('<<<<<<<< receiving % s', json.dumps(msg, indent=2))
 
                 type = msg['type']
@@ -246,7 +246,7 @@ class Client(object):
         data = {k:v for k, v in data.items() if v is not None}
 
         log.debug('>>>>>>>> sending %s', json.dumps(data, indent=2))
-        self.conn.send(json.dumps(data, cls=RippleEncoder))
+        self.conn.send(json.dumps(data, cls=RippleEncoder).encode('utf-8'))
         with self.callbacks_lock:
             self.callbacks[data['id']] = DeferredResponse()
         msg = self.callbacks[data['id']].wait()
