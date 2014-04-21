@@ -30,6 +30,7 @@ setup(
     dependency_links=dependency_links,
     classifiers=[
         'Development Status :: 3 - Alpha',
+        'Programming Language :: Python :: 3.3',
         'License :: OSI Approved :: BSD License',
     ]
 )
