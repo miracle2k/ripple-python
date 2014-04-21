@@ -14,5 +14,3 @@ notifications:
 branches:
   only:
     - master
-~
-~
