@@ -1,3 +1,4 @@
+from __future__ import unicode_literals
 from decimal import Decimal
 import json
 from os import path
@@ -112,11 +113,11 @@ def test_payment_two_receiving_issuers():
 
     # We identify the correct recipient data
     assert tx.currencies_received == (
-        'CAD', [u'rLju3NgFJn9jZuiyibyJM7asTVeVoueWWF',
-                u'rhKJE9kFPz6DuK4KyL2o8NkCCNPKnSQGRL'])
+        'CAD', ['rLju3NgFJn9jZuiyibyJM7asTVeVoueWWF',
+                'rhKJE9kFPz6DuK4KyL2o8NkCCNPKnSQGRL'])
     assert tx.amounts_received == [
-        (Decimal('14.43'), u'CAD', u'rLju3NgFJn9jZuiyibyJM7asTVeVoueWWF'),
-        (Decimal('0.5700000000000'), u'CAD', u'rhKJE9kFPz6DuK4KyL2o8NkCCNPKnSQGRL')
+        (Decimal('14.43'), 'CAD', 'rLju3NgFJn9jZuiyibyJM7asTVeVoueWWF'),
+        (Decimal('0.5700000000000'), 'CAD', 'rhKJE9kFPz6DuK4KyL2o8NkCCNPKnSQGRL')
     ]
 
     assert tx.recipient_balances == [
@@ -151,9 +152,9 @@ def test_payment_receiving_own_senders_thirdparty_ious():
                 'rnziParaNb8nsU4aruQdwYE3j5jUcqjzFm',
                 'rhKJE9kFPz6DuK4KyL2o8NkCCNPKnSQGRL'])
     assert tx.amounts_received == [
-        (Decimal('5.088436765502'), u'CAD', u'rLju3NgFJn9jZuiyibyJM7asTVeVoueWWF'),
+        (Decimal('5.088436765502'), 'CAD', 'rLju3NgFJn9jZuiyibyJM7asTVeVoueWWF'),
         (Decimal('10.15156323449716'), 'CAD', 'rnziParaNb8nsU4aruQdwYE3j5jUcqjzFm'),
-        (Decimal('9.7600000000000'), u'CAD', u'rhKJE9kFPz6DuK4KyL2o8NkCCNPKnSQGRL')
+        (Decimal('9.7600000000000'), 'CAD', 'rhKJE9kFPz6DuK4KyL2o8NkCCNPKnSQGRL')
     ]
 
     assert tx.sender_trust_limits == [

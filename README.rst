@@ -2,7 +2,6 @@ Python utilities to work with the Ripple payment network.
 
 For now, this contains:
 
-
 ripple.sign
     Offline signing for transactions.
     [very new, but seems to work so far]
@@ -17,3 +16,17 @@ ripple.client
 ripple.datastructures
     Helps extracting information from Ripple transaction data, like
     how balances changed during a payment. [very much a work in progress]
+
+
+Installation
+------------
+
+Runs on Python 2.7 and Python 3.3.
+
+To install on 2.7:
+
+    $ pip install ripple-python
+
+To install on 3.3:
+
+    $ pip install --process-dependency-links ripple-python

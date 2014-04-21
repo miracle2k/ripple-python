@@ -1,6 +1,6 @@
 #!/usr/bin/env python
+from __future__ import print_function
 import json
-
 import os
 import sys
 import Queue
@@ -34,7 +34,7 @@ def main(argv):
     # Do some manual validation
     secret = ns.secret or os.environ.get('RIPPLE_SECRET')
     if not secret:
-        print 'You need to provide --secret or RIPPLE_SECRET'
+        print('You need to provide --secret or RIPPLE_SECRET')
         return 1
 
     # Run the command

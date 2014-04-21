@@ -1,5 +1,7 @@
 from decimal import Decimal
 import json
+import six
+from six.moves import filter
 
 
 # During debugging, this helps with the RipplePrimitive __getattr__
@@ -112,7 +114,7 @@ class Amount(RipplePrimitive):
             if isinstance(data, int):
                 # A raw xrp number in drops:
                 value = xrp(data)
-            elif isinstance(data, basestring):
+            elif isinstance(data, six.string_types):
                 if '.' in data:
                     value = Decimal(data)
                 else:

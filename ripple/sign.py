@@ -7,9 +7,10 @@ See also:
 """
 
 import hashlib
-from ecdsa import curves, SigningKey
+from binascii import hexlify
+from ecdsa import curves, SigningKey, six
 from ecdsa.util import sigencode_der
-from serialize import (
+from .serialize import (
     to_bytes, from_bytes, RippleBaseDecoder, serialize_object, fmt_hex)
 
 
@@ -70,7 +71,7 @@ def root_key_from_seed(seed):
     seq = 0
     while True:
         private_gen = from_bytes(first_half_of_sha512(
-            '{}{}'.format(seed, to_bytes(seq, 4))))
+            b''.join([seed, to_bytes(seq, 4)])))
         seq += 1
         if curves.SECP256k1.order >= private_gen:
             break
@@ -84,8 +85,8 @@ def root_key_from_seed(seed):
     public_gen_compressed = ecc_point_to_bytes_compressed(public_gen)
     while True:
         secret = from_bytes(first_half_of_sha512(
-            "{}{}{}".format(
-                public_gen_compressed, to_bytes(0, 4), to_bytes(i, 4))))
+            b"".join([
+                public_gen_compressed, to_bytes(0, 4), to_bytes(i, 4)])))
         i += 1
         if curves.SECP256k1.order >= secret:
             break
@@ -149,7 +150,7 @@ def hash_transaction(transaction, prefix):
     binary = first_half_of_sha512(
         to_bytes(prefix, 4) +
         serialize_object(transaction, hex=False))
-    return binary.encode('hex').upper()
+    return hexlify(binary).upper()
 
 
 def first_half_of_sha512(*bytes):
@@ -157,7 +158,7 @@ def first_half_of_sha512(*bytes):
     hash = hashlib.sha512()
     for part in bytes:
         hash.update(part)
-    return hash.digest()[:256/8]
+    return hash.digest()[:256//8]
 
 
 def ecc_point_to_bytes_compressed(point, pad=False):
@@ -170,11 +171,11 @@ def ecc_point_to_bytes_compressed(point, pad=False):
     the curve prime order value.
     """
 
-    header = '\x02' if point.y() % 2 == 0 else '\x03'
+    header = b'\x02' if point.y() % 2 == 0 else b'\x03'
     bytes = to_bytes(
         point.x(),
-        curves.SECP256k1.order.bit_length()/8 if pad else None)
-    return "{}{}".format(header, bytes)
+        curves.SECP256k1.order.bit_length()//8 if pad else None)
+    return b"".join([header, bytes])
 
 
 class Test:
@@ -197,13 +198,15 @@ class Test:
 
         assert get_ripple_from_pubkey(
             ecc_point_to_bytes_compressed(key.privkey.public_key.point, pad=True)) == \
-            'rhcfR9Cg98qCxHpCcPBmMonbDBXo84wyTn'
+                'rhcfR9Cg98qCxHpCcPBmMonbDBXo84wyTn'
 
     def test_key_derivation(self):
         key = root_key_from_seed(parse_seed('ssq55ueDob4yV3kPVnNQLHB6icwpC'))
         # This ensures the key was properly initialized
-        assert hex(key.privkey.secret_multiplier) == \
-            '0x902981cd5e0c862c53dc4854b6da4cc04179a2a524912d79800ac4c95435564dL'
+        expected = '0x902981cd5e0c862c53dc4854b6da4cc04179a2a524912d79800ac4c95435564d'
+        if not six.PY3:
+            expected = expected + 'L'
+        assert hex(key.privkey.secret_multiplier) == expected
 
     def test_ripple_from_secret(self):
         assert get_ripple_from_secret('shHM53KPZ87Gwdqarm1bAmPeXg8Tn') ==\
@@ -211,20 +214,20 @@ class Test:
 
     def test_signing_hash(self):
         assert create_signing_hash({"TransactionType": "Payment"}) == \
-            '903C926641095B392A123D4CCD19E060DD8A603C91DDFF254AC9AD3B986C10CF'
+            b'903C926641095B392A123D4CCD19E060DD8A603C91DDFF254AC9AD3B986C10CF'
 
     def test_der_encoding(self):
         # This simply verifies that the DER encoder from the ECDSA lib
         # we're using does the right thing and matches the output of the
         # DER encoder of ripple-lib.
-        assert sigencode_der(
+        assert hexlify(sigencode_der(
             int('ff89083ed4923b3379381826339c614ac1cb79bf36b18c34d5e97784c5a5a9db', 16),
             int('cc4355eda8ce79c629fb53b0d19abc1b543d9f174626cf33b8a26254c63b22b7', 16),
-            None).encode('hex') == \
-            '3046022100ff89083ed4923b3379381826339c614ac1cb79bf36b18c34d5e97784c5a5a9db022100cc4355eda8ce79c629fb53b0d19abc1b543d9f174626cf33b8a26254c63b22b7'
+            None)) == \
+            b'3046022100ff89083ed4923b3379381826339c614ac1cb79bf36b18c34d5e97784c5a5a9db022100cc4355eda8ce79c629fb53b0d19abc1b543d9f174626cf33b8a26254c63b22b7'
 
     def test_sign(self):
         # Verify a correct signature is created (uses a fixed k value):
         key = root_key_from_seed(parse_seed('ssq55ueDob4yV3kPVnNQLHB6icwpC'))
-        assert ecdsa_sign(key, 'FF00EECC', k=3).encode('hex') == \
-            '3045022100f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f902205f6d58be6182b9a1e04fcec36f75668deafad2e4336b48770ee5c559d3518301'
+        assert hexlify(ecdsa_sign(key, 'FF00EECC', k=3)) == \
+            b'3045022100f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f902205f6d58be6182b9a1e04fcec36f75668deafad2e4336b48770ee5c559d3518301'

@@ -3,6 +3,11 @@ from io import BytesIO
 from decimal import Decimal
 from hashlib import sha256
 import types
+import six
+from six.moves import filter
+from six.moves import map
+from six.moves import zip
+import binascii
 
 
 __all__ = ('serialize_object',)
@@ -201,7 +206,7 @@ def serialize_object(obj, hex=True):
     stream.seek(0)
     bytes = stream.getvalue()
     if hex:
-        return bytes.encode('hex').upper()
+        return fmt_hex(bytes)
     return bytes
 
 
@@ -212,13 +217,13 @@ def serialize_field(stream, name, value):
     tag_byte = (type_bits << 4 if type_bits < 16 else 0) | \
                (field_bits if field_bits < 16 else 0)
 
-    if name == 'LedgerEntryType' and isinstance(value, basestring):
+    if name == 'LedgerEntryType' and isinstance(value, six.string_types):
         value = LEDGER_ENTRY_TYPES[value][0]
 
-    if name == 'TransactionType' and isinstance(value, basestring):
+    if name == 'TransactionType' and isinstance(value, six.string_types):
         value = TRANSACTION_TYPES[value]
 
-    if name == 'TransactionResult' and isinstance(value, basestring):
+    if name == 'TransactionResult' and isinstance(value, six.string_types):
         value = TRANSACTION_RESULT_VALUES[value]
 
     if hasattr(value, '__json__'):
@@ -241,7 +246,7 @@ def serialize_hex(stream, hexstring):
 
     In ripple-lib, this is ``serializedtypes.js:serialize_hex()``.
     """
-    serialize_bytes(stream, hexstring.decode('hex'))
+    serialize_bytes(stream, decode_hex(hexstring))
 
 
 def serialize_bytes(stream, bytes):
@@ -341,7 +346,7 @@ class TypeSerializers:
             assert len(amount_hex) <= 16
             amount_hex = amount_hex.zfill(16)
 
-            amount_bytes = bytearray(amount_hex.decode('hex'))
+            amount_bytes = bytearray(decode_hex(amount_hex))
 
             # Clear first bit to indicate XRP
             amount_bytes[0] &= 0x3f
@@ -373,7 +378,7 @@ class TypeSerializers:
         keys = filter(lambda k: not k.islower(), value.keys())
 
         # Keys need to be sorted
-        keys = sort_fields(keys)
+        keys = sort_fields(list(keys))
 
         for key in keys:
             serialize_field(stream, key, value[key])
@@ -382,18 +387,11 @@ class TypeSerializers:
 
 
 def sort_fields(keys):
-    def field_compare(a, b):
-        a_type_bits, a_field_bits = INVERSE_FIELDS_MAP[a]
-        b_type_bits, b_field_bits = INVERSE_FIELDS_MAP[b]
-
-        # Sort by type id first, then by field id
-        if a_type_bits != b_type_bits:
-            return a_type_bits - b_type_bits
-        else:
-            return a_field_bits - b_field_bits
-
+    def sort_key(a):
+        type_bits, field_bits = INVERSE_FIELDS_MAP[a]
+        return type_bits, field_bits
     keys = keys[:]
-    keys.sort(cmp=field_compare)
+    keys.sort(key=sort_key)
     return keys
 
 
@@ -423,8 +421,16 @@ def parse_non_native_amount(string):
 
 def to_bytes(number, length=None, endianess='big'):
     """Will take an integer and serialize it to a string of bytes.
-    Python 3 has this, this is a backport to Python 2.
-    # http://stackoverflow.com/a/16022710/15677
+
+    Python 3 has this, this is originally a backport to Python 2, from:
+        http://stackoverflow.com/a/16022710/15677
+
+    We use it for Python 3 as well, because Python 3's builtin version
+    needs to be given an explicit length, which means our base decoder
+    API would have to ask for an explicit length, which just isn't as nice.
+
+    Alternative implementation here:
+       https://github.com/nederhoed/python-bitcoinaddress/blob/c3db56f0a2d4b2a069198e2db22b7f607158518c/bitcoinaddress/__init__.py#L26
     """
     h = '%x' % number
     s = ('0'*(len(h) % 2) + h)
@@ -432,20 +438,35 @@ def to_bytes(number, length=None, endianess='big'):
         if len(s) > length*2:
             raise ValueError('number of large for {} bytes'.format(length))
         s = s.zfill(length*2)
-    s = s.decode('hex')
+    s = decode_hex(s)
     return s if endianess == 'big' else s[::-1]
 
 
 def from_bytes(bytes):
     """Reverse of to_bytes()."""
-    return int(bytes.encode('hex'), 16)
+    # binascii works on all versions of Python, the hex encoding does not
+    return int(binascii.hexlify(bytes), 16)
 
 
 def fmt_hex(bytes):
+    """Format the bytes as a hex string, return upper-case version.
+    """
     # This is a separate function so as to not make the mistake of
     # using the '%X' format string with an ints, which will not
     # guarantee an even-length string.
-    return bytes.encode('hex').upper()
+    #
+    # binascii works on all versions of Python, the hex encoding does not.
+    hex = binascii.hexlify(bytes)
+    hex = hex.decode()  # Returns bytes, which makes no sense to me
+    return hex.upper()
+
+
+def decode_hex(hex_string):
+    """Decode a string like "fa4b21" to actual bytes."""
+    if six.PY3:
+        return bytes.fromhex(hex_string)
+    else:
+        return hex_string.decode('hex')
 
 
 class RippleBaseDecoder(object):
@@ -489,7 +510,7 @@ class RippleBaseDecoder(object):
     @classmethod
     def encode(cls, data):
         """Apply base58 encode including version, checksum."""
-        version = '\x00'
+        version = b'\x00'
         bytes = version + data
         bytes += sha256(sha256(bytes).digest()).digest()[:4]   # checksum
         return cls.encode_base(bytes)
@@ -503,16 +524,18 @@ class RippleBaseDecoder(object):
         # Divide that integer into base58
         res = []
         while n > 0:
-            n, r = divmod (n, len(cls.alphabet))
+            n, r = divmod(n, len(cls.alphabet))
             res.append(cls.alphabet[r])
         res = ''.join(res[::-1])
 
         # Encode leading zeros as base58 zeros
-        czero = b'\x00'
+        czero = 0 if six.PY3 else b'\x00'
         pad = 0
         for c in data:
-            if c == czero: pad += 1
-            else: break
+            if c == czero:
+                pad += 1
+            else:
+                break
         return cls.alphabet[0] * pad + res
 
 

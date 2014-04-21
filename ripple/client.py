@@ -1,4 +1,9 @@
-from Queue import Queue, Empty
+from __future__ import unicode_literals
+try:
+    from queue import Queue, Empty
+except ImportError:
+    # Python 2
+    from Queue import Queue, Empty
 from decimal import Decimal
 import json
 import threading
@@ -212,8 +217,8 @@ class Client(object):
                         continue
 
                 raise ValueError(
-                    u'unexpected message from server: %s' % unicode(msg))
-        except Exception, e:
+                    'unexpected message from server: %s' % str(msg))
+        except Exception as e:
             # If we have already shutdown, ignore the error. This is
             # because by shutting down the socket during a recv(), a
             # variety of socket-related / SSL errors are to be expected.
@@ -402,7 +407,7 @@ class Remote(object):
                             self._pending_transactions[hash].resolve(msg)
                             del self._pending_transactions[hash]
 
-        except Exception, e:
+        except Exception as e:
             # On error, notify all watches
             with self._pending_transactions_lock:
                 for transaction in self._pending_transactions.values():
