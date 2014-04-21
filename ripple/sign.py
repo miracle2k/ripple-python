@@ -17,16 +17,24 @@ from .serialize import (
 __all__ = ('sign_transaction', 'signature_for_transaction')
 
 
-def sign_transaction(transaction, secret):
-    """Adds a signature (``TxnSignature``) field to the transaction object.
+tfFullyCanonicalSig = 0x80000000
+
+
+def sign_transaction(transaction, secret, flag_canonical=True):
+    """High-level signing function.hexlify
+
+    - Adds a signature (``TxnSignature``) field to the transaction object.
+    - By default will set the ``FullyCanonicalSig`` flag to ``
     """
+    if flag_canonical:
+        transaction['Flags'] = transaction.get('Flags', 0) | tfFullyCanonicalSig
     sig = signature_for_transaction(transaction, secret)
     transaction['TxnSignature'] = sig
     return transaction
 
 
 def signature_for_transaction(transaction, secret):
-    """Calculate the signature of the transaction.
+    """Calculate the fully-canonical signature of the transaction.
 
     Will set the ``SigningPubKey`` as appropriate before signing.
 
@@ -108,10 +116,25 @@ def ecdsa_sign(key, signing_hash, **kw):
     The data will be a binary coded transaction.
     """
     r, s = key.sign_number(int(signing_hash, 16), **kw)
-    # Encode signature in DER format, as in.
-    # As in ``sjcl.ecc.ecdsa.secretKey.prototype.encodeDER``
+    r, s = ecdsa_make_canonical(r, s)
+    # Encode signature in DER format, as in
+    # ``sjcl.ecc.ecdsa.secretKey.prototype.encodeDER``
     der_coded = sigencode_der(r, s, None)
     return der_coded
+
+
+def ecdsa_make_canonical(r, s):
+    """Make sure the ECDSA signature is the canonical one.
+
+        https://github.com/ripple/ripple-lib/commit/9d6ccdcab1fc237dbcfae41fc9e0ca1d2b7565ca
+        https://ripple.com/wiki/Transaction_Malleability
+    """
+    # For a canonical signature we want the lower of two possible values for s
+    # 0 < s <= n/2
+    N = curves.SECP256k1.order
+    if not N / 2 >= s:
+        s = N - s
+    return r, s
 
 
 def get_ripple_from_pubkey(pubkey):
@@ -225,6 +248,24 @@ class Test:
             int('cc4355eda8ce79c629fb53b0d19abc1b543d9f174626cf33b8a26254c63b22b7', 16),
             None)) == \
             b'3046022100ff89083ed4923b3379381826339c614ac1cb79bf36b18c34d5e97784c5a5a9db022100cc4355eda8ce79c629fb53b0d19abc1b543d9f174626cf33b8a26254c63b22b7'
+
+    def test_canonical_signature(self):
+        # From https://github.com/ripple/ripple-lib/blob/9d6ccdcab1fc237dbcfae41fc9e0ca1d2b7565ca/test/sjcl-ecdsa-canonical-test.js
+        def parse_hex_sig(hexstring):
+            l = len(hexstring)
+            r = int(hexstring[:l//2], 16)
+            s = int(hexstring[l//2:], 16)
+            return r, s
+
+        # Test a signature that will be canonicalized
+        input = "27ce1b914045ba7e8c11a2f2882cb6e07a19d4017513f12e3e363d71dc3fff0fb0a0747ecc7b4ca46e45b3b32b6b2a066aa0249c027ef11e5bce93dab756549c"
+        r, s = ecdsa_make_canonical(*parse_hex_sig(input))
+        assert (r, s) == parse_hex_sig('27ce1b914045ba7e8c11a2f2882cb6e07a19d4017513f12e3e363d71dc3fff0f4f5f8b813384b35b91ba4c4cd494d5f8500eb84aacc9af1d6403cab218dfeca5')
+
+        # Test a signature that is already fully-canonical
+        input = "5c32bc2b4d34e27af9fb66eeea0f47f6afb3d433658af0f649ebae7b872471ab7d23860688aaf9d8131f84cfffa6c56bf9c32fd8b315b2ef9d6bcb243f7a686c"
+        r, s = ecdsa_make_canonical(*parse_hex_sig(input))
+        assert (r, s) == parse_hex_sig(input)
 
     def test_sign(self):
         # Verify a correct signature is created (uses a fixed k value):

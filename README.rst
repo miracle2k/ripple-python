@@ -3,7 +3,7 @@ Python utilities to work with the Ripple payment network.
 For now, this contains:
 
 ripple.sign
-    Offline signing for transactions.
+    Offline signing for transactions. Supports fully-canonical signatures.
     [very new, but seems to work so far]
 
 ripple.serialize
