@@ -21,9 +21,9 @@ ripple.datastructures
 Installation
 ------------
 
-Runs on Python 2.7 and Python 3.3.
+Runs on Python 2.7 and Python 3.3. PyPy is also supported.
 
-To install on 2.7:
+To install on 2.7, or PyPy:
 
     $ pip install ripple-python
 

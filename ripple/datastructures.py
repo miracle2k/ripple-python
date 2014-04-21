@@ -1,5 +1,6 @@
 from decimal import Decimal
 import json
+import __builtin__
 import six
 from six.moves import filter
 
@@ -511,7 +512,7 @@ class PaymentTransaction(Transaction):
         """
 
         # list() used once exhausts the generator, it's tiring..
-        filter = lambda f, d: list(__builtins__['filter'](f, d))
+        filter = lambda f, d: list(__builtin__.filter(f, d))
 
         # Ignore all DirectoryNodes, not sure what they do, it seems
         # like upkeep.
