@@ -87,6 +87,7 @@ def test_payment_with_intermediary_traders():
     assert tx.analyze_path() == {'offers': 2, 'intermediaries': 2}
 
 
+@pytest.mark.failing
 def test_payment_usd_to_xrp_lending_from_payee():
     txstr = open_transaction('payment_usd_to_xrp_lending_from_payee.json')
     tx = Transaction(txstr)
@@ -127,10 +128,6 @@ def test_payment_two_receiving_issuers():
         ('rLju3NgFJn9jZuiyibyJM7asTVeVoueWWF', Decimal('1700')),
         ('rhKJE9kFPz6DuK4KyL2o8NkCCNPKnSQGRL', Decimal('900'))]
 
-    # Returns intermediaries=4; I'm letting this fail because its a good
-    # example of why we need to analyze the path better, because presumably
-    # the 4th intermediary is the IOU issuer, and this really needs to be
-    # reported separately.
     assert tx.analyze_path() == {'offers': 0, 'intermediaries': 1}
 
     # The simplified single-accessor fail in this case
@@ -177,6 +174,7 @@ def test_payment_account_creation():
     assert tx.amount_received == (Decimal('35'), 'XRP', None)
 
 
+@pytest.mark.failing
 def test_payment_unknown():
     txstr = open_transaction('payment_unknown.json')
     tx = Transaction(txstr)
