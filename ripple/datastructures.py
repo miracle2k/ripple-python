@@ -325,7 +325,11 @@ class Transaction(RipplePrimitive):
         """Return affected nodes matching the filters."""
         result = self.affected_nodes
         if account:
-            result = filter(lambda n: n.affects_account(account), result)
+            # Allow to filter by multiple accounts
+            if not isinstance(account, list):
+                account = [account]
+            result = filter(
+                lambda n: all([n.affects_account(a) for a in account]), result)
         if type:
             result = filter(lambda n: n.type == type, result)
         return list(result)
