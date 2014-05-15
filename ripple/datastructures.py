@@ -56,7 +56,10 @@ class RipplePrimitive(dict):
         return json.dumps(self.__json__())
 
     def __json__(self):
-        return self.data
+        return dict.copy(self)
+
+    def copy(self):
+        return RipplePrimitive(self)
 
 
 class tupledict(list):
