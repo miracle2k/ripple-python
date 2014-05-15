@@ -112,7 +112,7 @@ class RippleStateEntry(RipplePrimitive):
 
 class Amount(RipplePrimitive):
 
-    def __init__(self, data, safe=True):
+    def __init__(self, data, safe=False):
         if isinstance(data, dict):
             # Proper currency structure
             data['value'] = Decimal(data['value'])
