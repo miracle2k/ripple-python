@@ -112,9 +112,10 @@ class RippleStateEntry(RipplePrimitive):
 
 class Amount(RipplePrimitive):
 
-    def __init__(self, data):
+    def __init__(self, data, safe=True):
         if isinstance(data, dict):
             # Proper currency structure
+            data['value'] = Decimal(data['value'])
             RipplePrimitive.__init__(self, data)
         else:
             # Parse the amount
@@ -126,6 +127,8 @@ class Amount(RipplePrimitive):
             elif isinstance(data, six.string_types):
                 if '.' in data:
                     value = Decimal(data)
+                elif safe:
+                    value = xrp(data)
                 else:
                     # For safety, so there can be no confusion.
                     raise ValueError('When passing a string as amount, it '
