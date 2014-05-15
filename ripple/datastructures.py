@@ -154,6 +154,41 @@ class Amount(RipplePrimitive):
         else:
             return RipplePrimitive.__json__(self)
 
+    def __unicode__(self):
+        return '%s' % self.value
+
+    def _assert_compat_other(self, other):
+        """For arithmetic with the Amount class, check that the ``other``
+        object can be handled.
+        """
+        if isinstance(other, unicode):
+            return Decimal(unicode)
+        if isinstance(other, Decimal):
+            return other
+        assert other.currency == self.currency
+        return other['value']
+
+    def __add__(self, other):
+        other_value = self._assert_compat_other(other)
+        result = self.copy()
+        result['value'] = self['value'] + other_value
+        return result
+
+    def __sub__(self, other):
+        other_value = self._assert_compat_other(other)
+        result = self.copy()
+        result['value'] = self['value'] - other_value
+        return result
+
+    def __div__(self, other):
+        other_value = self._assert_compat_other(other)
+        result = self.copy()
+        result['value'] = self['value'] / other_value
+        return result
+
+    def __rdiv__(self, other):
+        return Amount.__truediv__(other, self)
+
 
 
 class AccountRootEntry(RipplePrimitive):
