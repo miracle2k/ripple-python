@@ -46,6 +46,7 @@ class RipplePrimitive(dict):
             # (see also the related Python bug report).
             # One possible way to fix this might be implementing
             # __getattribute__ instead and check if a property exists.
+            # Until then, enable the hack on top of this file.
             raise AttributeError(item)
 
     def __repr__(self):
