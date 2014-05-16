@@ -7,12 +7,7 @@ from setuptools import setup, find_packages
 install_requires = [
     'ecdsa>=0.10',
     'six>=1.5.2',
-    'websocket-client==dev'
-]
-dependency_links = [
-    # dependency_links will be gone in pip 1.6, but by that time
-    # websocket-client on PyPI should have Python3 support.
-    'https://github.com/ralphbean/websocket-client/archive/master.zip#egg=websocket-client-dev'
+    'websocket-client==0.14.0'
 ]
 
 
@@ -27,7 +22,6 @@ setup(
     packages=find_packages(),
     zip_safe=True,
     install_requires=install_requires,
-    dependency_links=dependency_links,
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Programming Language :: Python :: 3.3',
