@@ -293,6 +293,7 @@ class Transaction(RipplePrimitive):
             'OfferCancel': OfferCancelTransaction,
             'TrustSet': TrustSetTransaction,
             'AccountSet': AccountSetTransaction,
+            'SetRegularKey': SetRegularKeyTransaction
         }[data['TransactionType']]
         self.__class__ = subclass
 
@@ -614,6 +615,10 @@ class TrustSetTransaction(Transaction):
 
 
 class AccountSetTransaction(Transaction):
+    pass
+
+
+class SetRegularKeyTransaction(Transaction):
     pass
 
 

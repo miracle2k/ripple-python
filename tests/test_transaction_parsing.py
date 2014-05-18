@@ -3,7 +3,7 @@ from decimal import Decimal
 import json
 from os import path
 import pytest
-from ripple import Transaction, TransactionSubscriptionMessage
+from ripple import Transaction, TransactionSubscriptionMessage, SetRegularKeyTransaction
 
 # TODO: I'd like to move the test assertions into the JSON file, and eval them.
 
@@ -193,3 +193,11 @@ def test_account_root_node_without_fields():
     # It we can do this to all nodes w/o exception, we are good
     for node in tx.affected_nodes:
         node.affects_account('foo')
+
+
+def test_set_regular_key():
+    """[Regression] Make sure we can handle SetRegularKey transactions."""
+    txstr = open_transaction('set_regular_key.json')
+    tx = Transaction(txstr)
+
+    assert type(tx) == SetRegularKeyTransaction

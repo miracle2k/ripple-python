@@ -1,0 +1,42 @@
+-------------------
+{
+  "Account": "rMNk1Z91UGWYz7gWANmTRvUN6ErbMMNcAQ",
+  "Fee": "12",
+  "Flags": 2147483648,
+  "LastLedgerSequence": 6699776,
+  "RegularKey": "r4LhN5woA5dETersNBkX5KAL6RVdaQCCow",
+  "Sequence": 378,
+  "SigningPubKey": "034023B292BF484304C368E928C691758519F8CCADA9AFC71C121A6B8047A9057A",
+  "TransactionType": "SetRegularKey",
+  "TxnSignature": "3045022100FEBE728C1B005902FD6C1CFB010913E9AB04A251C7F22C9D153058B6F7AC66BC022055EAFAD52BD76EAFADBC1BE272B7A06A0F727BF6E2962E067E230F8D8FDA4B73",
+  "hash": "08527C911867C42398B8515D36303FEBA75F558846B1E13DABFF2FE716CC6694",
+  "inLedger": 6699769,
+  "ledger_index": 6699769,
+  "metadata": {
+    "AffectedNodes": [
+      {
+        "ModifiedNode": {
+          "FinalFields": {
+            "Account": "rMNk1Z91UGWYz7gWANmTRvUN6ErbMMNcAQ",
+            "Balance": "126879704",
+            "Flags": 65536,
+            "OwnerCount": 9,
+            "RegularKey": "r4LhN5woA5dETersNBkX5KAL6RVdaQCCow",
+            "Sequence": 379
+          },
+          "LedgerEntryType": "AccountRoot",
+          "LedgerIndex": "F03FC1C92A0DAE5C7909D5A6678066385C4910ADE74B431C352CAAC11D85D806",
+          "PreviousFields": {
+            "Balance": "126879716",
+            "Flags": 0,
+            "Sequence": 378
+          },
+          "PreviousTxnID": "BF2D712DCF7B85BB217363B92E2B97F755818BDE61580410DDBD9724B7FFAEFA",
+          "PreviousTxnLgrSeq": 6697861
+        }
+      }
+    ],
+    "TransactionIndex": 0,
+    "TransactionResult": "tesSUCCESS"
+  }
+}
