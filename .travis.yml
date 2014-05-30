@@ -7,7 +7,7 @@ install:
   - pip install pytest
   - pip install --process-dependency-links .
 script:
-  - py.test -m "not failing" tests/
+  - py.test tests/
 notifications:
   email:
     - michael@elsdoerfer.com

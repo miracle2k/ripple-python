@@ -87,7 +87,7 @@ def test_payment_with_intermediary_traders():
     assert tx.analyze_path() == {'offers': 2, 'intermediaries': 2}
 
 
-@pytest.mark.failing
+@pytest.mark.xfail()
 def test_payment_usd_to_xrp_lending_from_payee():
     txstr = open_transaction('payment_usd_to_xrp_lending_from_payee.json')
     tx = Transaction(txstr)
@@ -174,7 +174,7 @@ def test_payment_account_creation():
     assert tx.amount_received == (Decimal('35'), 'XRP', None)
 
 
-@pytest.mark.failing
+@pytest.mark.xfail()
 def test_payment_unknown():
     txstr = open_transaction('payment_unknown.json')
     tx = Transaction(txstr)
