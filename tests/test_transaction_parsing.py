@@ -31,6 +31,12 @@ def test_payment_xrp():
     assert tx.analyze_path() == {'offers': 0, 'intermediaries': 0}
 
 
+def test_payment_delivered_amount_xrp():
+    txstr = open_transaction('payment_delivered_amount_xrp.json')
+    tx = Transaction(txstr)
+    assert tx.amount_received == (Decimal('0.000955'), 'XRP', None)
+
+
 def test_payment_to_trusting_party():
     txstr = open_transaction('payment_to_trusting_party.json')
     tx = Transaction(txstr)

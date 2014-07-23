@@ -470,7 +470,9 @@ class PaymentTransaction(Transaction):
         amount received.
         """
         if self.meta.get('DeliveredAmount'):
-            amount = self.meta.DeliveredAmount.value
+            amount = self.Amount.value \
+                if isinstance(self.meta.DeliveredAmount, dict) \
+                else xrp(self.meta.DeliveredAmount)
         else:
             amount = self.Amount.value \
                 if isinstance(self.Amount, dict) else xrp(self.Amount)
