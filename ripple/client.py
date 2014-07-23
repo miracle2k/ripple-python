@@ -248,7 +248,7 @@ class Client(object):
         data['id'] = self._mkid()
         data = {k:v for k, v in data.items() if v is not None}
 
-        log.debug('>>>>>>>> sending %s', json.dumps(data, indent=2))
+        log.debug('>>>>>>>> sending %s', json.dumps(data, indent=2, cls=RippleEncoder))
         self.conn.send(json.dumps(data, cls=RippleEncoder).encode('utf-8'))
         with self.callbacks_lock:
             self.callbacks[data['id']] = DeferredResponse()
