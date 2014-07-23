@@ -28,7 +28,10 @@ class RippleError(Exception):
 class ResponseError(RippleError):
     def __init__(self, error_response):
         self.response = error_response
-        RippleError.__init__(self, error_response['error_message'])
+        RippleError.__init__(
+            self,
+            error_response.get('error_exception',
+                               error_response.get('error_message', '')))
 
     def __getitem__(self, item):
         return self.response[item]
