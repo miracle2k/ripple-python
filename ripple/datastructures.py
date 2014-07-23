@@ -110,52 +110,82 @@ class RippleStateEntry(RipplePrimitive):
         raise ValueError('%s is not a party' % account)
 
 
-class Amount(RipplePrimitive):
+class Amount(object):
+    """Represents a Ripple amount. The datastructure behind this will
+    either be a dict with amount/currency/issuer keys, or a natural
+    number, in which case we are dealing with XRP.
+
+    Usage/Features:
+
+    - The properties are used to normalize access.
+    - Supports arithmetic.
+    - Can be initialized with with special formats:
+        Decimal('1') for XRP for drops, for example.
+
+    Note: This ideally should inherit RipplePrimitive, but then we have
+    trouble serializing it to an integer in the XRP case, since
+    RipplePrimitive as a dict, and Python's json module does not provide
+    any hook to change how basic types are handled.
+    """
 
     def __init__(self, data, safe=False):
-        if isinstance(data, dict):
-            # Proper currency structure
-            data['value'] = Decimal(data['value'])
-            RipplePrimitive.__init__(self, data)
-        else:
-            # Parse the amount
-            currency = 'XRP'
-            issuer = None
-            if isinstance(data, int):
-                # A raw xrp number in drops:
-                value = xrp(data)
-            elif isinstance(data, six.string_types):
-                if '.' in data:
-                    value = Decimal(data)
-                elif safe:
-                    value = xrp(data)
-                else:
-                    # For safety, so there can be no confusion.
-                    raise ValueError('When passing a string as amount, it '
-                                     'needs to include a decimal point.')
-            elif isinstance(data, Decimal):
-                # Use as provided
-                value = data
+        # In Ripple data structures, data is either a IOU dict, or
+        # XRP drops in int. We want to allow the developer to init
+        # an Amount object with other values.
+        if isinstance(data, six.string_types):
+            # Treat as XRP, convert to drops. However, we play it safe
+            # and expect the user to be unambiguous about her intentions,
+            # by either using a decimal point, or setting ``safe`` to True.
+            if '.' in data or safe:
+                data = Decimal(data)
+                # Fall-through
             else:
-                # TODO: Still need to support IOUs
-                raise ValueError('cannot handle amount: %s' % data)
+                # For safety, so there can be no confusion.
+                raise ValueError('When passing a string as amount, it '
+                                 'needs to include a decimal point.')
+        if isinstance(data, Decimal):
+            # If a decimal is given,
+            data = Decimal(data) * xrp_base
+            assert int(data) == data
+            data = int(data)
 
-            RipplePrimitive.__init__(self, {
-                'currency': currency,
-                'issuer': issuer,
-                'value': value
-            })
+        self.data = data
 
-    def __json__(self):
-        if self.currency == 'XRP':
-            in_drops = (self.value * xrp_base)
-            assert int(in_drops) == in_drops
-            return int((self.value * xrp_base))
+    @property
+    def currency(self):
+        if isinstance(self.data, dict):
+            return self.data['currency']
         else:
-            return RipplePrimitive.__json__(self)
+            return 'XRP'
+
+    @property
+    def issuer(self):
+        if isinstance(self.data, dict):
+            return self.data['issuer']
+        else:
+            return None
+
+    @property
+    def value(self):
+        if isinstance(self.data, dict):
+            return Decimal(self.data['amount'])
+        else:
+            return xrp(self.data)
 
     def __unicode__(self):
         return '%s' % self.value
+
+    def __json__(self):
+        return self.data
+
+    def __contains__(self, item):
+        return item in self.data
+
+    def __getitem__(self, item):
+        return self.data[item]
+
+    def __setitem__(self, key, value):
+        self.data[key] = value
 
     def _assert_compat_other(self, other):
         """For arithmetic with the Amount class, check that the ``other``

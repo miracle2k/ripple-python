@@ -16,6 +16,12 @@ def test_amount():
     # Generate output
     assert Amount('10.0').__json__() == 10000000
 
+    # If Amount represents an IOU, then it can also be used as a dict
+    amount = Amount({'value': '10', 'currency': 'USD'})
+    assert not ('issuer' in amount)
+    amount['issuer'] = 'foo'
+    assert amount.issuer == 'foo'
+
 
 
 
