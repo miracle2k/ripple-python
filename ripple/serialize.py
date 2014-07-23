@@ -255,6 +255,13 @@ def serialize_bytes(stream, bytes):
     stream.write(bytes)
 
 
+def UInt160(value):
+    # In ripple-lib, UInt160 is an address. We simply use a string.
+    # This helper is the equivalent of UInt160.to_bytes().
+    bytes = RippleBaseDecoder.decode(value, 25) # = 20 bytes w/o header??
+    return bytes
+
+
 def serialize_varint(stream, val):
     """
     In ripple-lib, this is ``serializedtypes.js:serialize_varint()``.
@@ -296,6 +303,8 @@ class AllStatic(type):
 
 
 class TypeSerializers:
+    # See ripple-lib:serializedtypes.js for the originals.
+
     __metaclass__ = AllStatic
     def byte_writer(num_bytes):
         def func(stream, value):
@@ -307,8 +316,7 @@ class TypeSerializers:
     STInt32 = byte_writer(4)
 
     def STAccount(stream, value):
-        account = RippleBaseDecoder.decode(value, 25)
-        serialize_bytes(stream, account)
+        serialize_bytes(stream, UInt160(value))
 
     def STAmount(stream, amount):
         if isinstance(amount, dict):
@@ -360,14 +368,56 @@ class TypeSerializers:
         # https://ripple.com/wiki/Currency_Format
         value = value.upper()
         assert len(value) == 3 and value.isalnum()
-        # ripple-lib has special logic for this, but I'm not sure if
-        # this is a valid use-case at all?
-        assert not value == 'XRP'
 
-        data = bytearray(20)
-        data[12:15] = map(ord, value)
+        if value == 'XRP':
+            # Often (like for an Amount object) the currency is not written
+            # at all if it is XRP. But for example when serializing a path,
+            # 'XRP' as a currency needs to be indicated, and this is done
+            # by 20 empty bytes.
+            # Note: As currencies get more complex, demurrage, we will need
+            # to introduce a special class; for now we use a simple string.
+            # ripple-lib:currency.js will help to look at, and also
+            # "Currency_format" format on the wiki.
+            stream.write(bytearray(20))
 
-        stream.write(data)
+        else:
+            data = bytearray(20)
+            data[12:15] = map(ord, value)
+            stream.write(data)
+
+    def STPathSet(stream, value):
+        typeBoundary =  0xff
+        typeEnd = 0x00
+        typeAccount = 0x01
+        typeCurrency = 0x10
+        typeIssuer = 0x20
+        # A list of paths, mainly used when sending a payment.
+        for idx, path in enumerate(value):
+            if not idx == 0:
+                TypeSerializers.STInt8(stream, typeBoundary)
+
+            for entry in path:
+                # For now, the path sets we work with come from
+                # rippled directly, with the "type" already set.
+                # Still, calculate it new in order to validate.
+                type = 0
+                if ('account' in entry):
+                    type |= typeAccount
+                if ('currency' in entry):
+                    type |= typeCurrency
+                if ('issuer' in entry):
+                    type |= typeIssuer
+                assert type == entry['type']
+
+                TypeSerializers.STInt8(stream, entry['type'])
+                if entry['type'] & typeAccount:
+                    stream.write(UInt160(entry['account']))
+                if entry['type'] & typeCurrency:
+                    TypeSerializers.STCurrency(stream, entry['currency'])
+                if entry['type'] & typeIssuer:
+                    stream.write(UInt160(entry['issuer']))
+
+        TypeSerializers.STInt8(stream, typeEnd)
 
     def STVL(stream, value):
         # A variable length string, hex-encoded
