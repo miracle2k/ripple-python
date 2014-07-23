@@ -329,6 +329,21 @@ class Client(object):
         return self.execute(
             "submit", tx_blob=tx_blob, tx_json=tx_json, secret=secret)
 
+    def find_path_once(self, source, destination, destination_amount,
+                       source_currencies=None):
+        """Use the ``ripple_path_find`` API to find a path"""
+        return self.execute(
+            "ripple_path_find", source_account=source,
+            destination_account=destination,
+            destination_amount=destination_amount,
+            source_currencies=source_currencies
+        )
+
+    def path_find(self):
+        # Start an ongoing path-finding process. Uses the ``path_find``
+        # API instead.
+        raise NotImplementedError()
+
 
 class DeferredTransaction(object):
     # TODO: Can we just re-use DeferredResponse? - at least extend it
@@ -449,12 +464,32 @@ class Remote(object):
                     'give a secret so one can be derived.')
             account = get_ripple_from_secret(self.secret)
 
+        # If the amount to send does not include an issuer, setting it
+        # to the destination address makes ripple pick one.
+        if amount.currency != 'XRP':
+            if not 'issuer' in amount:
+                amount['issuer'] = destination
+
+        # For non-xrp payments, we need to have a path
+        if amount.currency == 'XRP':
+            paths = None
+        else:
+            pfr = self.client.find_path_once(
+                source=account, destination=destination,
+                destination_amount=amount
+            )
+            if not pfr['alternatives']:
+                raise ValueError('No path found for this payment')
+            paths = pfr['alternatives'][0]['paths_computed']
+
         tx = {
             "TransactionType" : "Payment",
             "Account" : account,
             "Destination" : destination,
             "Amount" : amount,
         }
+        if paths is not None:
+            tx['Paths'] = paths
 
         return self.submit(account, tx)
 
