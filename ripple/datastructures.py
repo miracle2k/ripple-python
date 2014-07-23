@@ -128,21 +128,18 @@ class Amount(object):
     any hook to change how basic types are handled.
     """
 
-    def __init__(self, data, safe=False):
+    def __init__(self, data):
         # In Ripple data structures, data is either a IOU dict, or
         # XRP drops in int. We want to allow the developer to init
         # an Amount object with other values.
         if isinstance(data, six.string_types):
-            # Treat as XRP, convert to drops. However, we play it safe
-            # and expect the user to be unambiguous about her intentions,
-            # by either using a decimal point, or setting ``safe`` to True.
-            if '.' in data or safe:
+            # Treat as XRP, convert to drops, if there is a decimal
+            # point. Otherwise we have to support this as drops, since
+            # rippled often returns drops as string objects.
+            if '.' in data:
                 data = Decimal(data)
                 # Fall-through
-            else:
-                # For safety, so there can be no confusion.
-                raise ValueError('When passing a string as amount, it '
-                                 'needs to include a decimal point.')
+
         if isinstance(data, Decimal):
             # If a decimal is given,
             data = Decimal(data) * xrp_base
@@ -165,12 +162,23 @@ class Amount(object):
         else:
             return None
 
-    @property
-    def value(self):
+    def _get_value(self):
         if isinstance(self.data, dict):
-            return Decimal(self.data['amount'])
+            return Decimal(self.data['value'])
         else:
             return xrp(self.data)
+    def _set_value(self, v):
+        if isinstance(self.data, dict):
+            self.data['value'] = '%s' % v
+        else:
+            self.data = int(Decimal(v) * xrp_base)
+    value = property(_get_value, _set_value)
+
+    def copy(self, new_value=None):
+        copy = Amount(self.data.copy() if isinstance(self.data, dict) else self.data)
+        if new_value is not None:
+            copy.value = new_value
+        return copy
 
     def __unicode__(self):
         return '%s' % self.value
@@ -191,30 +199,27 @@ class Amount(object):
         """For arithmetic with the Amount class, check that the ``other``
         object can be handled.
         """
-        if isinstance(other, unicode):
-            return Decimal(unicode)
+        if isinstance(other, str):
+            return Decimal(other)
         if isinstance(other, Decimal):
             return other
         assert other.currency == self.currency
-        return other['value']
+        return other.value
 
     def __add__(self, other):
         other_value = self._assert_compat_other(other)
-        result = self.copy()
-        result['value'] = self['value'] + other_value
-        return result
+        new_value = self.value + other_value
+        return self.copy(new_value)
 
     def __sub__(self, other):
         other_value = self._assert_compat_other(other)
-        result = self.copy()
-        result['value'] = self['value'] - other_value
-        return result
+        new_value = self.value - other_value
+        return self.copy(new_value)
 
     def __div__(self, other):
         other_value = self._assert_compat_other(other)
-        result = self.copy()
-        result['value'] = self['value'] / other_value
-        return result
+        new_value = self.value / other_value
+        return self.copy(new_value)
 
     def __rdiv__(self, other):
         return Amount.__truediv__(other, self)
