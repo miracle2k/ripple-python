@@ -452,11 +452,11 @@ class Remote(object):
         self._sequence_cache[account] = info['Sequence']
         return info
 
-    def send_payment(self, destination, amount, account=None):
+    def send_payment(self, destination, amount, account=None, flags=None):
         # Parse the amount
         amount = Amount(amount)
 
-        # Determine the sender
+        # Determine the sender address
         if not account:
             if not self.secret:
                 raise ValueError(
@@ -488,6 +488,8 @@ class Remote(object):
             "Destination" : destination,
             "Amount" : amount,
         }
+        if flags is not None:
+            tx['Flags'] = flags
         if paths is not None:
             tx['Paths'] = paths
 

@@ -152,13 +152,27 @@ class PaymentCommand(Command):
 
     name = 'payment'
 
+    tfPartialPayment = 0x00020000
+
     @classmethod
     def add_args(self, parser):
         parser.add_argument('destination', help='Destination account')
         parser.add_argument('amount', help='Amount to send')
+        parser.add_argument('--partial', action='store_true',
+                            help='recipient will pay any fees')
 
     def run(self, ns):
-        result = self.remote.send_payment(ns.destination, int(ns.amount))
+        amount = ns.amount
+        if '/' in amount:
+            value, currency = ns.amount.split('/', 2)
+            amount = {'value': value, 'currency': currency}
+
+        flags = 0
+        if ns.partial:
+            flags |= self.tfPartialPayment
+
+        result = self.remote.send_payment(
+            ns.destination, amount, flags=flags)
         self.handle(result)
 
 
