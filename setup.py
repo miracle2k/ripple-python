@@ -16,7 +16,7 @@ setup(
     description="Python routines for the Ripple payment network",
     author='Michael Elsdörfer',
     author_email='michael@elsdoerfer.com',
-    version="0.2.7",
+    version="0.2.8",
     url="https://github.com/miracle2k/ripple-python",
     license='BSD',
     packages=find_packages(),
