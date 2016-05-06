@@ -328,7 +328,8 @@ class Transaction(RipplePrimitive):
             'OfferCancel': OfferCancelTransaction,
             'TrustSet': TrustSetTransaction,
             'AccountSet': AccountSetTransaction,
-            'SetRegularKey': SetRegularKeyTransaction
+            'SetRegularKey': SetRegularKeyTransaction,
+            'EnableAmendment': EnableAmendmentTransaction,
         }[data['TransactionType']]
         self.__class__ = subclass
 
@@ -658,6 +659,8 @@ class AccountSetTransaction(Transaction):
 class SetRegularKeyTransaction(Transaction):
     pass
 
+class EnableAmendmentTransaction(Transaction):
+    pass
 
 class TransactionSubscriptionMessage(RipplePrimitive):
     """The data structure returned by the server when subscribing to
