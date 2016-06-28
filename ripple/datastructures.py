@@ -330,6 +330,8 @@ class Transaction(RipplePrimitive):
             'AccountSet': AccountSetTransaction,
             'SetRegularKey': SetRegularKeyTransaction,
             'EnableAmendment': EnableAmendmentTransaction,
+            'SeeFee': SetFeeTransaction,
+            'SignerListSet': SignerListSetTransaction
         }[data['TransactionType']]
         self.__class__ = subclass
 
@@ -659,8 +661,18 @@ class AccountSetTransaction(Transaction):
 class SetRegularKeyTransaction(Transaction):
     pass
 
+
 class EnableAmendmentTransaction(Transaction):
     pass
+
+
+class SetFeeTransaction(Transaction):
+    pass
+
+
+class SignerListSetTransaction(Transaction):
+    pass
+
 
 class TransactionSubscriptionMessage(RipplePrimitive):
     """The data structure returned by the server when subscribing to
