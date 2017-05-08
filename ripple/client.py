@@ -452,7 +452,8 @@ class Remote(object):
         self._sequence_cache[account] = info['Sequence']
         return info
 
-    def send_payment(self, destination, amount, account=None, flags=None):
+    def send_payment(self, destination, amount, account=None, flags=None,
+            destination_tag=None):
         # Parse the amount
         amount = Amount(amount)
 
@@ -486,8 +487,10 @@ class Remote(object):
             "TransactionType" : "Payment",
             "Account" : account,
             "Destination" : destination,
-            "Amount" : amount,
+            "Amount" : amount
         }
+        if destination_tag:
+            tx['DestinationTag'] = destination_tag
         if flags is not None:
             tx['Flags'] = flags
         if paths is not None:
