@@ -4,8 +4,9 @@ import json
 import os
 import sys
 import argparse
+from pygments import highlight, lexers, formatters
 
-from ripple.client import Remote
+from ripple.client import Remote, ResponseError
 from ripple.sign import get_ripple_from_secret
 
 
@@ -61,7 +62,17 @@ class Command(object):
 
     def handle(self, result):
         print('TxHash: %s' % result.hash)
-        result = result.wait()
+
+        try:
+            result = result.wait()
+        except ResponseError as e:
+            result = e.response
+
+        if True:
+            formatted_json = json.dumps(result, sort_keys=True, indent=4)
+            colorful_json = highlight(unicode(formatted_json, 'UTF-8'), lexers.JsonLexer(), formatters.TerminalFormatter())
+            print(colorful_json)
+
         print(result['engine_result_message'])
 
     @property

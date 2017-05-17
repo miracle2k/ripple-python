@@ -37,6 +37,24 @@ class ResponseError(RippleError):
         return self.response[item]
 
 
+class TransactionError(ResponseError):
+    """Respresents an error in a transaction. A transaction is a
+    higher-level object of our own. For example, the ripple server
+    may give us a temporary "tes*" response, and we continue to wait
+    and confirm until we have a final answer. Only then do we complete
+    or fail our transaction.
+    """
+    def __init__(self, error_code, full_response):
+        self.response = full_response
+        RippleError.__init__(
+            self,
+            full_response.get('error_exception',
+                               full_response.get('error_message', '')))
+
+    def __getitem__(self, item):
+        return self.response[item]
+
+
 FEE_DEFAULTS = {
     'fee_ref': 10,       # cost of reference transaction in "fee units"
     'fee_base': 10,      # cost of reference transactios in XRP
@@ -65,6 +83,15 @@ def transaction_hash(tx_json):
 
 
 class DeferredResponse(object):
+    """A future that can either return a result value or raises
+    an exception.
+
+    - Must be resolved with a ripple server response, or an exception
+      instance.
+    - If the response indicates an error, will throw a ResponseError.
+    - If resolved with an exception instance, will throw that.
+    - Otherwise will resolve the the ripple server response.
+    """
     def __init__(self):
         self.resolved = threading.Event()
         self.response = None
@@ -243,6 +270,11 @@ class Client(object):
         log.debug('client.read_proc now shut down')
 
     def execute(self, cmd, **data):
+        """Send a commad to the server, wait for the result. Sync!
+
+        Possible outcomes are from DeferredResponse.wait(): A ripple
+        server response or an ResponseError exception.
+        """
         # Prepare the command to send
         data['command'] = cmd
         data['id'] = self._mkid()
@@ -346,6 +378,10 @@ class Client(object):
 
 
 class DeferredTransaction(object):
+    """The difference to DeferredResponse is that this one will
+    always be resolved with an actual transaction result. However,
+    the transaction may indicate a failure.
+    """
     # TODO: Can we just re-use DeferredResponse? - at least extend it
 
     def __init__(self, tx, txhash):
@@ -356,13 +392,11 @@ class DeferredTransaction(object):
 
     def wait(self, timeout=None):
         self.resolved.wait(timeout)
-        if isinstance(self.result, Exception):
-            raise self.result
         if self.error:
-            raise RippleError(self.error)
+            raise TransactionError(self.error, self.result)
         return self.result
 
-    def resolve(self, result=None, error=None):
+    def resolve(self, result, error=None):
         self.result = result
         self.error = error
         self.resolved.set()
@@ -499,6 +533,10 @@ class Remote(object):
         return self.submit(account, tx)
 
     def submit(self, account, tx_json):
+        """Returns a DeferredTransaction that you should wait() on.
+
+        Or, raises an exception immediately during client.submit().
+        """
         # Add a fee
         self.client.add_fee(tx_json)
 
@@ -527,7 +565,7 @@ class Remote(object):
             # Fee was claimed, but transaction did not succeed.
             # Wiki claims this may be a proposed disposition, but JS client
             # just goes to error and finalizes.
-            pending.resolve(error=error_code)
+            pending.resolve(result, error=error_code)
         elif error_cat == 'tes':
             # Success - proposed disposition.
             # JS client will emit an unused proposed event and then will
@@ -539,7 +577,7 @@ class Remote(object):
             # ledgers later with a locally adjusted sequence number to
             # account for transactions happened in the intermediary.
             # TODO:  We don't do resubmission for now.
-            pending.resolve(error=error_code)
+            pending.resolve(result, error=error_code)
         elif error_cat == 'ter':
             # Did not succeed initially, but may still, according to Wiki.
             # Despite this, the JS client first explicitly fetches a new
@@ -547,12 +585,12 @@ class Remote(object):
             # sounds like a potential race condition leading to a double
             # spend to me.
             # TODO: Anyway, we don't do resubmission for now.
-            pending.resolve(error=error_code)
+            pending.resolve(result, error=error_code)
         else:
             # Default - must be tem (malFormed) or tel (local); those are
             # final failures.
             # TODO: JS client resubmits on tooBusy one ledger later
-            pending.resolve(error=error_code)
+            pending.resolve(result, error=error_code)
             self._sequence_cache[account] -= 1
 
-        return  pending
+        return pending
