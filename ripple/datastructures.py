@@ -338,7 +338,7 @@ class Transaction(RipplePrimitive):
             'EscrowFinish': EscrowFinishTransaction,
             'EscrowCreate': EscrowCreateTransaction,
             'EscrowCancel': EscrowCancelTransaction,
-        }[data['TransactionType']]
+        }.get(data['TransactionType'], UnknownTransaction)
         self.__class__ = subclass
 
     @property
@@ -701,6 +701,10 @@ class PaymentChannelCreateTransaction(Transaction):
 
 
 class PaymentChannelFundTransaction(Transaction):
+    pass
+
+
+class UnknownTransaction(Transaction):
     pass
 
 
