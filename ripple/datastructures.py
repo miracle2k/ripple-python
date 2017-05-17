@@ -331,7 +331,13 @@ class Transaction(RipplePrimitive):
             'SetRegularKey': SetRegularKeyTransaction,
             'EnableAmendment': EnableAmendmentTransaction,
             'SeeFee': SetFeeTransaction,
-            'SignerListSet': SignerListSetTransaction
+            'SignerListSet': SignerListSetTransaction,
+            'PaymentChannelFund': PaymentChannelFundTransaction,
+            'PaymentChannelCreate': PaymentChannelCreateTransaction,
+            'PaymentChannelClaim': PaymentChannelClaimTransaction,
+            'EscrowFinish': EscrowFinishTransaction,
+            'EscrowCreate': EscrowCreateTransaction,
+            'EscrowCancel': EscrowCancelTransaction,
         }[data['TransactionType']]
         self.__class__ = subclass
 
@@ -672,6 +678,31 @@ class SetFeeTransaction(Transaction):
 
 class SignerListSetTransaction(Transaction):
     pass
+
+
+class EscrowCreateTransaction(Transaction):
+    pass
+
+
+class EscrowCancelTransaction(Transaction):
+    pass
+
+
+class EscrowFinishTransaction(Transaction):
+    pass
+
+
+class PaymentChannelClaimTransaction(Transaction):
+    pass
+
+
+class PaymentChannelCreateTransaction(Transaction):
+    pass
+
+
+class PaymentChannelFundTransaction(Transaction):
+    pass
+
 
 
 class TransactionSubscriptionMessage(RipplePrimitive):
